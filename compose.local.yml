@@ -1,0 +1,49 @@
+# ==========================================
+# Docker Compose LOCAL - VSCar
+# PostgreSQL rodando no Windows via host.docker.internal
+# ==========================================
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vscar-backend-local
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:teste010203!@host.docker.internal:5432/vscar_db
+      API_PORT: 3001
+      JWT_SECRET: 5285c093fd368d92d9d94b46f8c107494a94190478b7a39442ec6a7058bf8291
+      JWT_EXPIRES_IN: 7d
+    ports:
+      - "3001:3001"
+    networks:
+      - vscar_network_local
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vscar-frontend-local
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - vscar_network_local
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev
+
+networks:
+  vscar_network_local:
+    driver: bridge

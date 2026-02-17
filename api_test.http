@@ -1,0 +1,24 @@
+### Resetar Senha do Admin
+POST http://localhost:3001/debug/reset-admin-password
+
+###
+
+### Realizar Login
+POST http://localhost:3001/api/auth/login
+Content-Type: application/json
+
+{
+    "email": "admin@vscar.com.br",
+    "password": "admin123"
+}
+
+
+### Realizar Login
+POST http://localhost:3001/api/auth/login
+Content-Type: application/json
+
+{
+    "email": "gerenciador@teste.com.br",
+    "password": "admin123"
+}
+
