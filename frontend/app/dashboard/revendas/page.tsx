@@ -21,20 +21,20 @@ export default function RevendasPage() {
     <div className="px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Revendas</h1>
-        <Link href="/dashboard/revendas/new" className="bg-blue-600 text-white px-4 py-2 rounded">
+        <Link href="/dashboard/revendas/new" className="btn-primary">
           Nova Revenda
         </Link>
       </div>
 
       {revendas.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-6 text-center">
-          <p className="text-gray-600">Nenhuma revenda encontrada</p>
+        <div className="card text-center">
+          <p className="opacity-50">Nenhuma revenda encontrada</p>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="card overflow-hidden">
           <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
+            <thead>
+              <tr className="border-b border-gray-700">
                 <th className="px-6 py-3 text-left text-sm font-semibold">Nome</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold">Email</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold">Status</th>
@@ -42,7 +42,7 @@ export default function RevendasPage() {
             </thead>
             <tbody>
               {revendas.map((r) => (
-                <tr key={r.id} className="border-t">
+                <tr key={r.id} className="border-b border-gray-700 hover:bg-gray-800">
                   <td className="px-6 py-4">{r.name}</td>
                   <td className="px-6 py-4">{r.email}</td>
                   <td className="px-6 py-4">{r.status}</td>

@@ -1,13 +1,13 @@
-"use client";
+"use client"
 
-import type React from "react";
-import { DashboardHeader } from "@/components/dashboard-header";
-import { Sidebar } from "@/components/sidebar";
+import type React from "react"
+import { DashboardHeader } from "@/components/dashboard-header"
+import { Sidebar } from "@/components/sidebar"
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: React.ReactNode
 }) {
   return (
     <div className="min-h-screen bg-background">
@@ -19,5 +19,5 @@ export default function DashboardLayout({
         <div className="p-6">{children}</div>
       </main>
     </div>
-  );
+  )
 }

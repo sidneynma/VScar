@@ -51,82 +51,90 @@ export default function RegisterPage() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full">
-        <h1 className="text-3xl font-bold mb-6 text-center">Cadastro VSCar</h1>
+  const inputStyle = { backgroundColor: "hsl(217, 27%, 26%)", border: "1px solid hsl(217, 27%, 35%)" }
 
-        {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+  return (
+    <div className="min-h-screen flex items-center justify-center py-8" style={{ backgroundColor: "hsl(217, 33%, 17%)" }}>
+      <div className="rounded-lg shadow-xl p-8 max-w-md w-full" style={{ backgroundColor: "hsl(217, 32%, 21%)" }}>
+        <h1 className="text-3xl font-bold mb-6 text-center text-white">Cadastro VSCar</h1>
+
+        {error && <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded mb-4">{error}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block text-gray-700 font-semibold mb-2">Nome da Empresa</label>
+            <label className="block text-gray-300 font-semibold mb-2">Nome da Empresa</label>
             <input
               type="text"
               name="tenant_name"
               value={formData.tenant_name}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+              style={inputStyle}
               required
             />
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700 font-semibold mb-2">Slug da Empresa (URL)</label>
+            <label className="block text-gray-300 font-semibold mb-2">Slug da Empresa (URL)</label>
             <input
               type="text"
               name="tenant_slug"
               value={formData.tenant_slug}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+              style={inputStyle}
               required
             />
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700 font-semibold mb-2">Seu Nome</label>
+            <label className="block text-gray-300 font-semibold mb-2">Seu Nome</label>
             <input
               type="text"
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+              style={inputStyle}
               required
             />
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700 font-semibold mb-2">Email</label>
+            <label className="block text-gray-300 font-semibold mb-2">Email</label>
             <input
               type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+              style={inputStyle}
               required
             />
           </div>
 
           <div className="mb-4">
-            <label className="block text-gray-700 font-semibold mb-2">Senha</label>
+            <label className="block text-gray-300 font-semibold mb-2">Senha</label>
             <input
               type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+              style={inputStyle}
               required
             />
           </div>
 
           <div className="mb-6">
-            <label className="block text-gray-700 font-semibold mb-2">Confirmar Senha</label>
+            <label className="block text-gray-300 font-semibold mb-2">Confirmar Senha</label>
             <input
               type="password"
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+              style={inputStyle}
               required
             />
           </div>
@@ -134,16 +142,17 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-3 rounded-lg font-semibold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: "hsl(221, 83%, 53%)" }}
           >
             {loading ? "Criando conta..." : "Cadastrar"}
           </button>
         </form>
 
-        <p className="text-center mt-4">
-          Já tem conta?{" "}
-          <Link href="/auth/login" className="text-blue-600 hover:underline font-semibold">
-            Faça login
+        <p className="text-center mt-4 text-gray-400">
+          Ja tem conta?{" "}
+          <Link href="/auth/login" className="text-blue-400 hover:underline font-semibold">
+            Faca login
           </Link>
         </p>
       </div>

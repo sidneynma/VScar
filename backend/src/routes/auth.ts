@@ -1,7 +1,7 @@
 import express, { type Request, type Response } from "express"
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
-import { pool } from "../index"
+import pool from "../db"
 import { v4 as uuidv4 } from "uuid"
 
 const router = express.Router()

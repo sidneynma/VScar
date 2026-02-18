@@ -1,16 +1,16 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/use-auth";
-import { LogOut, User } from "lucide-react";
+import { useEffect, useState } from "react"
+import { useAuth } from "@/hooks/use-auth"
+import { LogOut, User } from "lucide-react"
 
 export function DashboardHeader() {
-  const [mounted, setMounted] = useState(false);
-  const { user, logout } = useAuth();
+  const [mounted, setMounted] = useState(false)
+  const { user, logout } = useAuth()
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    setMounted(true)
+  }, [])
 
   if (!mounted) {
     return (
@@ -19,7 +19,7 @@ export function DashboardHeader() {
           <span className="text-muted-foreground">Carregando...</span>
         </div>
       </header>
-    );
+    )
   }
 
   return (
@@ -40,5 +40,5 @@ export function DashboardHeader() {
         </button>
       </div>
     </header>
-  );
+  )
 }

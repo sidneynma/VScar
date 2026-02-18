@@ -14,7 +14,7 @@ services:
       NODE_ENV: development
       DATABASE_URL: postgresql://postgres:teste010203!@host.docker.internal:5432/vscar_db
       API_PORT: 3001
-      JWT_SECRET: 5285c093fd368d92d9d94b46f8c107494a94190478b7a39442ec6a7058bf8291
+      JWT_SECRET: dev_jwt_secret_key_change_in_production
       JWT_EXPIRES_IN: 7d
     ports:
       - "3001:3001"

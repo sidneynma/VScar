@@ -66,13 +66,13 @@ export default function AnnouncementsPage() {
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold">{announcement.title}</h3>
-                  <div className="flex gap-4 mt-2 text-sm text-gray-600">
-                    <span>Visualizações: {announcement.views_count}</span>
+                  <div className="flex gap-4 mt-2 text-sm opacity-60">
+                    <span>Visualizacoes: {announcement.views_count}</span>
                     <span>Contatos: {announcement.contacts_count}</span>
                   </div>
                 </div>
                 <span
-                  className={`px-3 py-1 rounded-full text-sm font-semibold ${announcement.status === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
+                  className={`px-3 py-1 rounded-full text-sm font-semibold ${announcement.status === "active" ? "bg-green-600 text-white" : "bg-gray-600 text-white"}`}
                 >
                   {announcement.status}
                 </span>

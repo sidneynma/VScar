@@ -58,7 +58,7 @@ export default function PortalsPage() {
         {portals.length === 0 ? (
           <div className="card text-center py-8">
             <p className="text-gray-500 mb-4">Nenhum portal conectado</p>
-            <p className="text-sm text-gray-400">Conecte portais como OLX para publicar seus anúncios</p>
+            <p className="text-sm opacity-50">Conecte portais como OLX para publicar seus anuncios</p>
           </div>
         ) : (
           portals.map((portal) => (
@@ -66,15 +66,15 @@ export default function PortalsPage() {
               <div className="flex justify-between items-center">
                 <div>
                   <h3 className="text-lg font-semibold">{portal.name}</h3>
-                  <p className="text-gray-600 text-sm">Slug: {portal.slug}</p>
+                  <p className="text-sm opacity-60">Slug: {portal.slug}</p>
                 </div>
                 <div className="flex gap-2 items-center">
                   <span
-                    className={`px-3 py-1 rounded-full text-sm font-semibold ${portal.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
+                    className={`px-3 py-1 rounded-full text-sm font-semibold ${portal.is_active ? "bg-green-600 text-white" : "bg-gray-600 text-white"}`}
                   >
                     {portal.is_active ? "Ativo" : "Inativo"}
                   </span>
-                  <Link href={`/dashboard/portals/${portal.id}`} className="text-blue-600 hover:underline">
+                  <Link href={`/dashboard/portals/${portal.id}`} className="text-blue-400 hover:underline">
                     Editar
                   </Link>
                 </div>

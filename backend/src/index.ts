@@ -134,21 +134,45 @@ app.post("/debug/reset-admin-password", async (req, res) => {
     const newPassword = "admin123"
     const hashedPassword = await bcrypt.hash(newPassword, 10)
 
-    const result = await pool.query("UPDATE users SET password_hash = $1 WHERE email = $2 RETURNING id, email, name", [
-      hashedPassword,
-      "admin@vscar.com.br",
-    ])
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: "Admin user not found" })
-    }
+    // Reset all users to admin123
+    const result = await pool.query(
+      "UPDATE users SET password_hash = $1 RETURNING id, email, name",
+      [hashedPassword]
+    )
 
     res.json({
-      message: "Admin password reset successfully to: admin123",
-      user: result.rows[0],
+      message: "All passwords reset to: admin123",
+      hash: hashedPassword,
+      users: result.rows,
     })
   } catch (error) {
     console.error("[v0] Password reset failed:", error)
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" })
+  }
+})
+
+app.get("/debug/verify-password", async (req, res) => {
+  try {
+    const bcrypt = require("bcryptjs")
+    const result = await pool.query(
+      "SELECT id, email, name, password_hash FROM users WHERE email = $1",
+      ["admin@vscar.com.br"]
+    )
+
+    if (result.rows.length === 0) {
+      return res.json({ message: "User not found" })
+    }
+
+    const user = result.rows[0]
+    const match = await bcrypt.compare("admin123", user.password_hash)
+
+    res.json({
+      email: user.email,
+      name: user.name,
+      hash_prefix: user.password_hash.substring(0, 20) + "...",
+      password_match_admin123: match,
+    })
+  } catch (error) {
     res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" })
   }
 })
@@ -162,18 +186,18 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   })
 })
 
-// Start server
 pool
   .connect()
   .then(() => {
-    console.log("Database connected successfully")
+    console.log("Database connected successfully");
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`)
-    })
+      console.log(`Server running on port ${PORT}`);
+    });
   })
-  .catch((err) => {
-    console.error("Database connection failed:", err)
-    process.exit(1)
-  })
+  .catch((err: any) => {
+    // <-- O segredo está aqui
+    console.error("Database connection failed:", err);
+    process.exit(1);
+  });
 
-export { pool }
+export { pool };
