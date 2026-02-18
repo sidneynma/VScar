@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { Store, Plus } from "lucide-react"
 
 export default function RevendasPage() {
   const [isClient, setIsClient] = useState(false)
@@ -9,43 +10,55 @@ export default function RevendasPage() {
 
   useEffect(() => {
     setIsClient(true)
-    // TODO: Carregar revendas da API
     setRevendas([])
   }, [])
 
   if (!isClient) {
-    return <div className="flex items-center justify-center min-h-screen">Carregando...</div>
+    return (
+      <div className="flex items-center justify-center" style={{ minHeight: "50vh" }}>
+        <div className="spinner" />
+      </div>
+    )
   }
 
   return (
-    <div className="px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Revendas</h1>
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Revendas</h1>
+          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+            Gerencie suas revendas associadas
+          </p>
+        </div>
         <Link href="/dashboard/revendas/new" className="btn-primary">
+          <Plus className="w-4 h-4" />
           Nova Revenda
         </Link>
       </div>
 
       {revendas.length === 0 ? (
-        <div className="card text-center">
-          <p className="opacity-50">Nenhuma revenda encontrada</p>
+        <div className="card">
+          <div className="empty-state">
+            <Store className="w-10 h-10 mx-auto" style={{ color: "var(--text-muted)" }} />
+            <p>Nenhuma revenda encontrada</p>
+          </div>
         </div>
       ) : (
-        <div className="card overflow-hidden">
-          <table className="w-full">
+        <div className="table-container">
+          <table>
             <thead>
-              <tr className="border-b border-gray-700">
-                <th className="px-6 py-3 text-left text-sm font-semibold">Nome</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Email</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Status</th>
+              <tr>
+                <th>Nome</th>
+                <th>Email</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
               {revendas.map((r) => (
-                <tr key={r.id} className="border-b border-gray-700 hover:bg-gray-800">
-                  <td className="px-6 py-4">{r.name}</td>
-                  <td className="px-6 py-4">{r.email}</td>
-                  <td className="px-6 py-4">{r.status}</td>
+                <tr key={r.id}>
+                  <td className="font-medium">{r.name}</td>
+                  <td style={{ color: "var(--text-secondary)" }}>{r.email}</td>
+                  <td><span className="badge badge-green">{r.status}</span></td>
                 </tr>
               ))}
             </tbody>

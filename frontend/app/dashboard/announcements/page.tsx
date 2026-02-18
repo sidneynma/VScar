@@ -2,15 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import axios from "axios"
 import Link from "next/link"
+import { Megaphone, Plus, Eye, MessageSquare } from "lucide-react"
 
 interface Announcement {
   id: string
   title: string
-  vehicle_id: string
   status: string
-  published_at: string
   views_count: number
   contacts_count: number
 }
@@ -22,21 +20,17 @@ export default function AnnouncementsPage() {
 
   useEffect(() => {
     const token = localStorage.getItem("token")
-    if (!token) {
-      router.push("/auth/login")
-      return
-    }
-
+    if (!token) { router.push("/auth/login"); return }
     fetchAnnouncements()
   }, [router])
 
   const fetchAnnouncements = async () => {
     try {
       const token = localStorage.getItem("token")
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/announcements`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/announcements`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      setAnnouncements(response.data)
+      if (res.ok) setAnnouncements(await res.json())
     } catch (err) {
       console.error("Error:", err)
     } finally {
@@ -45,42 +39,60 @@ export default function AnnouncementsPage() {
   }
 
   if (loading) {
-    return <div className="p-6">Carregando...</div>
+    return (
+      <div className="flex items-center justify-center" style={{ minHeight: "50vh" }}>
+        <div className="spinner" />
+      </div>
+    )
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Anúncios</h1>
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Anuncios</h1>
+          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+            {announcements.length} anuncios publicados
+          </p>
+        </div>
         <Link href="/dashboard/announcements/new" className="btn-primary">
-          Novo Anúncio
+          <Plus className="w-4 h-4" />
+          Novo Anuncio
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {announcements.length === 0 ? (
-          <p className="text-gray-500">Nenhum anúncio publicado</p>
-        ) : (
-          announcements.map((announcement) => (
-            <div key={announcement.id} className="card hover:shadow-lg transition-shadow">
+      {announcements.length === 0 ? (
+        <div className="card">
+          <div className="empty-state">
+            <Megaphone className="w-10 h-10 mx-auto" style={{ color: "var(--text-muted)" }} />
+            <p>Nenhum anuncio publicado ainda</p>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {announcements.map((a) => (
+            <div key={a.id} className="card">
               <div className="flex justify-between items-start">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold">{announcement.title}</h3>
-                  <div className="flex gap-4 mt-2 text-sm opacity-60">
-                    <span>Visualizacoes: {announcement.views_count}</span>
-                    <span>Contatos: {announcement.contacts_count}</span>
+                <div>
+                  <h3 className="font-semibold">{a.title}</h3>
+                  <div className="flex gap-4 mt-2">
+                    <span className="flex items-center gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+                      <Eye className="w-3.5 h-3.5" /> {a.views_count} views
+                    </span>
+                    <span className="flex items-center gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
+                      <MessageSquare className="w-3.5 h-3.5" /> {a.contacts_count} contatos
+                    </span>
                   </div>
                 </div>
-                <span
-                  className={`px-3 py-1 rounded-full text-sm font-semibold ${announcement.status === "active" ? "bg-green-600 text-white" : "bg-gray-600 text-white"}`}
-                >
-                  {announcement.status}
-                </span>
+                {a.status === "active"
+                  ? <span className="badge badge-green">Ativo</span>
+                  : <span className="badge badge-gray">{a.status}</span>
+                }
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

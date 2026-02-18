@@ -186,18 +186,18 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   })
 })
 
+// Start server
 pool
   .connect()
   .then(() => {
-    console.log("Database connected successfully");
+    console.log("Database connected successfully")
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
+      console.log(`Server running on port ${PORT}`)
+    })
   })
-  .catch((err: any) => {
-    // <-- O segredo está aqui
-    console.error("Database connection failed:", err);
-    process.exit(1);
-  });
+  .catch((err) => {
+    console.error("Database connection failed:", err)
+    process.exit(1)
+  })
 
-export { pool };
+export { pool }

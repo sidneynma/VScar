@@ -1,11 +1,10 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import axios from "axios"
 import Link from "next/link"
+import { ArrowLeft } from "lucide-react"
 
 export default function NewSellerPage() {
   const router = useRouter()
@@ -20,69 +19,88 @@ export default function NewSellerPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-
+    setError("")
     try {
       const token = localStorage.getItem("token")
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/sellers`, formData, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sellers`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
       })
+      if (!res.ok) throw new Error("Erro ao criar vendedor")
       router.push("/dashboard/sellers")
     } catch (err) {
       setError("Erro ao criar vendedor")
-      console.error("Error:", err)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Novo Vendedor</h1>
-        <Link href="/dashboard/sellers" className="btn-secondary">
-          Voltar
-        </Link>
+    <div>
+      <Link
+        href="/dashboard/sellers"
+        className="inline-flex items-center gap-2 text-sm mb-6"
+        style={{ color: "var(--text-secondary)" }}
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Voltar para vendedores
+      </Link>
+
+      <div className="max-w-lg">
+        <h1 className="text-2xl font-bold mb-6">Novo Vendedor</h1>
+
+        {error && <div className="alert-error mb-4">{error}</div>}
+
+        <div className="card">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div>
+              <label className="label">Nome</label>
+              <input
+                type="text"
+                className="input"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Nome do vendedor"
+                required
+              />
+            </div>
+            <div>
+              <label className="label">Email</label>
+              <input
+                type="email"
+                className="input"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="vendedor@email.com"
+                required
+              />
+            </div>
+            <div>
+              <label className="label">Telefone</label>
+              <input
+                type="tel"
+                className="input"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                placeholder="(11) 99999-9999"
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button type="submit" disabled={loading} className="btn-primary flex-1 justify-center py-2.5" style={{ opacity: loading ? 0.6 : 1 }}>
+                {loading ? "Criando..." : "Criar Vendedor"}
+              </button>
+              <Link href="/dashboard/sellers" className="btn-secondary flex-1 justify-center py-2.5 text-center">
+                Cancelar
+              </Link>
+            </div>
+          </form>
+        </div>
       </div>
-
-      {error && <div className="bg-red-500 text-white p-4 rounded mb-4">{error}</div>}
-
-      <form onSubmit={handleSubmit} className="card max-w-2xl">
-        <div className="mb-4">
-          <label className="block text-sm font-semibold mb-2">Nome</label>
-          <input
-            type="text"
-            className="input"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            required
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-semibold mb-2">Email</label>
-          <input
-            type="email"
-            className="input"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            required
-          />
-        </div>
-
-        <div className="mb-4">
-          <label className="block text-sm font-semibold mb-2">Telefone</label>
-          <input
-            type="tel"
-            className="input"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-          />
-        </div>
-
-        <button type="submit" disabled={loading} className="btn-primary">
-          {loading ? "Criando..." : "Criar Vendedor"}
-        </button>
-      </form>
     </div>
   )
 }

@@ -1,8 +1,8 @@
 "use client"
 
-import { useAuth } from "@/hooks/use-auth"
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { Plus, Users } from "lucide-react"
 
 interface User {
   id: string
@@ -10,11 +10,9 @@ interface User {
   email: string
   role: string
   status: string
-  last_login?: string
 }
 
 export default function UsersPage() {
-  const { user } = useAuth()
   const [isClient, setIsClient] = useState(false)
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -25,82 +23,90 @@ export default function UsersPage() {
     const fetchUsers = async () => {
       try {
         const token = localStorage.getItem("token")
-        const response = await fetch("http://localhost:3001/api/users", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users`, {
+          headers: { Authorization: `Bearer ${token}` },
         })
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch users")
-        }
-
+        if (!response.ok) throw new Error("Failed to fetch users")
         const data = await response.json()
         setUsers(data)
-        setError(null)
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Erro ao carregar usuários")
-        setUsers([])
+        setError(err instanceof Error ? err.message : "Erro ao carregar usuarios")
       } finally {
         setLoading(false)
       }
     }
-
     fetchUsers()
   }, [])
 
-  if (!isClient) {
-    return <div className="flex items-center justify-center min-h-screen">Carregando...</div>
+  if (!isClient || loading) {
+    return (
+      <div className="flex items-center justify-center" style={{ minHeight: "50vh" }}>
+        <div className="spinner" />
+      </div>
+    )
   }
 
-  if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Carregando usuários...</div>
+  const roleBadge = (role: string) => {
+    switch (role) {
+      case "admin": return <span className="badge badge-blue">Admin</span>
+      case "manager": return <span className="badge badge-blue">Gerente</span>
+      default: return <span className="badge badge-gray">Usuario</span>
+    }
+  }
+
+  const statusBadge = (status: string) => {
+    return status === "active"
+      ? <span className="badge badge-green">Ativo</span>
+      : <span className="badge badge-gray">Inativo</span>
   }
 
   return (
-    <div className="px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Usuários</h1>
-        <Link href="/dashboard/users/new" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-          Novo Usuário
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Usuarios</h1>
+          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+            {users.length} usuarios cadastrados
+          </p>
+        </div>
+        <Link href="/dashboard/users/new" className="btn-primary">
+          <Plus className="w-4 h-4" />
+          Novo Usuario
         </Link>
       </div>
 
-      {error && <div className="bg-red-100 text-red-700 p-4 rounded mb-4">{error}</div>}
+      {error && <div className="alert-error mb-4">{error}</div>}
 
       {users.length === 0 ? (
-        <div className="bg-white rounded-lg shadow p-6 text-center">
-          <p className="text-gray-600">Nenhum usuário encontrado</p>
+        <div className="card">
+          <div className="empty-state">
+            <Users className="w-10 h-10 mx-auto" style={{ color: "var(--text-muted)" }} />
+            <p>Nenhum usuario encontrado</p>
+          </div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
+        <div className="table-container">
+          <table>
+            <thead>
               <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Nome</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Email</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Função</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Status</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold">Ações</th>
+                <th>Nome</th>
+                <th>Email</th>
+                <th>Funcao</th>
+                <th>Status</th>
+                <th>Acoes</th>
               </tr>
             </thead>
             <tbody>
               {users.map((u) => (
-                <tr key={u.id} className="border-t hover:bg-gray-50">
-                  <td className="px-6 py-4">{u.name}</td>
-                  <td className="px-6 py-4">{u.email}</td>
-                  <td className="px-6 py-4">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm">{u.role}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-2 py-1 rounded text-sm ${u.status === "active" ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
-                    >
-                      {u.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button className="text-blue-600 hover:underline">Editar</button>
+                <tr key={u.id}>
+                  <td className="font-medium">{u.name}</td>
+                  <td style={{ color: "var(--text-secondary)" }}>{u.email}</td>
+                  <td>{roleBadge(u.role)}</td>
+                  <td>{statusBadge(u.status)}</td>
+                  <td>
+                    <button className="text-sm font-medium" style={{ color: "var(--accent-blue)" }}>
+                      Editar
+                    </button>
                   </td>
                 </tr>
               ))}

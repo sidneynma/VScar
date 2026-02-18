@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import axios from "axios"
 import Link from "next/link"
+import { Globe, Plus } from "lucide-react"
 
 interface Portal {
   id: string
@@ -19,21 +19,17 @@ export default function PortalsPage() {
 
   useEffect(() => {
     const token = localStorage.getItem("token")
-    if (!token) {
-      router.push("/auth/login")
-      return
-    }
-
+    if (!token) { router.push("/auth/login"); return }
     fetchPortals()
   }, [router])
 
   const fetchPortals = async () => {
     try {
       const token = localStorage.getItem("token")
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/portals`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/portals`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      setPortals(response.data)
+      if (res.ok) setPortals(await res.json())
     } catch (err) {
       console.error("Error:", err)
     } finally {
@@ -42,47 +38,65 @@ export default function PortalsPage() {
   }
 
   if (loading) {
-    return <div className="p-6">Carregando...</div>
+    return (
+      <div className="flex items-center justify-center" style={{ minHeight: "50vh" }}>
+        <div className="spinner" />
+      </div>
+    )
   }
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Portais de Publicação</h1>
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Portais de Publicacao</h1>
+          <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+            Conecte portais para publicar seus anuncios
+          </p>
+        </div>
         <Link href="/dashboard/portals/new" className="btn-primary">
+          <Plus className="w-4 h-4" />
           Conectar Portal
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {portals.length === 0 ? (
-          <div className="card text-center py-8">
-            <p className="text-gray-500 mb-4">Nenhum portal conectado</p>
-            <p className="text-sm opacity-50">Conecte portais como OLX para publicar seus anuncios</p>
+      {portals.length === 0 ? (
+        <div className="card">
+          <div className="empty-state">
+            <Globe className="w-10 h-10 mx-auto" style={{ color: "var(--text-muted)" }} />
+            <p>Nenhum portal conectado</p>
+            <p className="text-xs mt-1">Conecte portais como OLX, Mercado Livre e outros</p>
           </div>
-        ) : (
-          portals.map((portal) => (
-            <div key={portal.id} className="card hover:shadow-lg transition-shadow">
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {portals.map((portal) => (
+            <div key={portal.id} className="card">
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-lg font-semibold">{portal.name}</h3>
-                  <p className="text-sm opacity-60">Slug: {portal.slug}</p>
+                  <h3 className="font-semibold">{portal.name}</h3>
+                  <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
+                    Slug: {portal.slug}
+                  </p>
                 </div>
-                <div className="flex gap-2 items-center">
-                  <span
-                    className={`px-3 py-1 rounded-full text-sm font-semibold ${portal.is_active ? "bg-green-600 text-white" : "bg-gray-600 text-white"}`}
+                <div className="flex items-center gap-3">
+                  {portal.is_active
+                    ? <span className="badge badge-green">Ativo</span>
+                    : <span className="badge badge-gray">Inativo</span>
+                  }
+                  <Link
+                    href={`/dashboard/portals/${portal.id}`}
+                    className="text-sm font-medium"
+                    style={{ color: "var(--accent-blue)" }}
                   >
-                    {portal.is_active ? "Ativo" : "Inativo"}
-                  </span>
-                  <Link href={`/dashboard/portals/${portal.id}`} className="text-blue-400 hover:underline">
                     Editar
                   </Link>
                 </div>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

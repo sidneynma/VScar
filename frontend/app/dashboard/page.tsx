@@ -3,56 +3,108 @@
 import { useAuth } from "@/hooks/use-auth"
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { Car, Megaphone, BarChart3, DollarSign } from "lucide-react"
 
 export default function DashboardPage() {
   const { user } = useAuth()
   const [isClient, setIsClient] = useState(false)
+  const [stats, setStats] = useState({ vehicles: 0, available: 0, reserved: 0, sold: 0 })
 
   useEffect(() => {
     setIsClient(true)
+    const fetchStats = async () => {
+      try {
+        const token = localStorage.getItem("token")
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/vehicles`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.ok) {
+          const vehicles = await res.json()
+          setStats({
+            vehicles: vehicles.length,
+            available: vehicles.filter((v: any) => v.status === "available").length,
+            reserved: vehicles.filter((v: any) => v.status === "reserved").length,
+            sold: vehicles.filter((v: any) => v.status === "sold").length,
+          })
+        }
+      } catch (err) {
+        console.error("Error fetching stats:", err)
+      }
+    }
+    fetchStats()
   }, [])
 
   if (!isClient || !user) {
-    return <div className="flex items-center justify-center min-h-screen">Carregando...</div>
+    return (
+      <div className="flex items-center justify-center" style={{ minHeight: "50vh" }}>
+        <div className="spinner" />
+      </div>
+    )
   }
 
   return (
-    <div className="px-4 py-8">
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-2">Bem-vindo, {user.name}!</h2>
-        <p className="text-gray-600">Função: {user.role}</p>
+    <div>
+      {/* Page title */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
+          Visao geral da {user.name}
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Link href="/dashboard/vehicles" className="card hover:shadow-lg transition-shadow">
-          <h3 className="text-lg font-semibold mb-2">Veículos</h3>
-          <p className="text-gray-600">Gerenciar seu inventário de veículos</p>
-        </Link>
+      {/* Stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="stat-card">
+          <div className="stat-icon blue">
+            <Car className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{stats.vehicles}</p>
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>Total em Estoque</p>
+          </div>
+        </div>
 
-        <Link href="/dashboard/revendas" className="card hover:shadow-lg transition-shadow">
-          <h3 className="text-lg font-semibold mb-2">Revendas</h3>
-          <p className="text-gray-600">Configurar revendas associadas</p>
-        </Link>
+        <div className="stat-card">
+          <div className="stat-icon green">
+            <Car className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{stats.available}</p>
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>Disponiveis</p>
+          </div>
+        </div>
 
-        <Link href="/dashboard/announcements" className="card hover:shadow-lg transition-shadow">
-          <h3 className="text-lg font-semibold mb-2">Anúncios</h3>
-          <p className="text-gray-600">Publicar e gerenciar anúncios</p>
-        </Link>
+        <div className="stat-card">
+          <div className="stat-icon yellow">
+            <BarChart3 className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{stats.reserved}</p>
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>Reservados</p>
+          </div>
+        </div>
 
-        <Link href="/dashboard/portals" className="card hover:shadow-lg transition-shadow">
-          <h3 className="text-lg font-semibold mb-2">Portais</h3>
-          <p className="text-gray-600">Configurar integração com portais</p>
-        </Link>
+        <div className="stat-card">
+          <div className="stat-icon purple">
+            <DollarSign className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-2xl font-bold">{stats.sold}</p>
+            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>Vendidos</p>
+          </div>
+        </div>
+      </div>
 
-        <Link href="/dashboard/users" className="card hover:shadow-lg transition-shadow">
-          <h3 className="text-lg font-semibold mb-2">Usuários</h3>
-          <p className="text-gray-600">Gerenciar usuários da empresa</p>
-        </Link>
-
-        <Link href="/dashboard/analytics" className="card hover:shadow-lg transition-shadow">
-          <h3 className="text-lg font-semibold mb-2">Análiticas</h3>
-          <p className="text-gray-600">Visualizar relatórios e dados</p>
-        </Link>
+      {/* Recent vehicles section */}
+      <div className="card">
+        <h2 className="text-lg font-semibold mb-4">Veiculos Recentes</h2>
+        <div className="empty-state">
+          <Car className="w-10 h-10 mx-auto" style={{ color: "var(--text-muted)" }} />
+          <p>Nenhum veiculo cadastrado ainda.</p>
+          <Link href="/dashboard/vehicles/new" className="btn-primary mt-4 inline-flex">
+            Adicionar Veiculo
+          </Link>
+        </div>
       </div>
     </div>
   )
