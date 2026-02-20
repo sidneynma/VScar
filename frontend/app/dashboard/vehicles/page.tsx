@@ -12,10 +12,15 @@ interface Vehicle {
   model: string
   year: number
   price: number
+  purchase_price?: number
   status: string
   color?: string
   mileage?: number
   created_at?: string
+  financial_state?: string
+  documentation?: string[]
+  conservation?: string[]
+  features?: string[]
 }
 
 export default function VehiclesPage() {

@@ -1,0 +1,16 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Instala apenas as dependências primeiro para usar o cache do Docker
+COPY package*.json ./
+RUN npm install --legacy-peer-deps
+
+# No desenvolvimento, não precisamos dar COPY . . pesado se usamos VOLUMES, 
+# mas vamos deixar para garantir que a estrutura exista
+COPY . .
+
+EXPOSE 3000
+
+# Mantém o modo dev que você está usando
+CMD ["npm", "run", "dev"]

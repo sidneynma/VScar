@@ -40,10 +40,15 @@ router.post("/", authMiddleware, requireRole("admin", "manager", "seller"), asyn
       transmission,
       mileage,
       price,
+      purchase_price,
       description,
       interior_color,
       doors,
       vehicle_type,
+      financial_state,
+      documentation,
+      conservation,
+      features,
       revenda_id,
     } = req.body
 
@@ -52,8 +57,8 @@ router.post("/", authMiddleware, requireRole("admin", "manager", "seller"), asyn
     }
 
     const result = await pool.query(
-      `INSERT INTO vehicles (id, tenant_id, revenda_id, title, brand, model, year, color, fuel_type, transmission, mileage, price, description, interior_color, doors, vehicle_type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+      `INSERT INTO vehicles (id, tenant_id, revenda_id, title, brand, model, year, color, fuel_type, transmission, mileage, price, purchase_price, description, interior_color, doors, vehicle_type, financial_state, documentation, conservation, features)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *`,
       [
         uuidv4(),
         req.user?.tenant_id,
@@ -67,14 +72,20 @@ router.post("/", authMiddleware, requireRole("admin", "manager", "seller"), asyn
         transmission,
         mileage,
         price,
+        purchase_price || null,
         description,
         interior_color,
         doors,
         vehicle_type || "car",
+        financial_state || "paid",
+        documentation || [],
+        conservation || [],
+        features || [],
       ],
     )
 
-    res.status(201).json({ message: "Vehicle created", vehicle: result.rows[0] })
+    const vehicle = result.rows[0]
+    res.status(201).json(vehicle)
   } catch (err) {
     console.error("Error:", err)
     res.status(500).json({ message: "Error creating vehicle" })
@@ -125,16 +136,21 @@ router.put(
         transmission,
         mileage,
         price,
+        purchase_price,
         description,
         status,
         interior_color,
         doors,
         vehicle_type,
+        financial_state,
+        documentation,
+        conservation,
+        features,
       } = req.body
 
       const result = await pool.query(
-        `UPDATE vehicles SET title = $1, brand = $2, model = $3, year = $4, color = $5, fuel_type = $6, transmission = $7, mileage = $8, price = $9, description = $10, status = $11, interior_color = $12, doors = $13, vehicle_type = $14, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $15 AND tenant_id = $16 RETURNING *`,
+        `UPDATE vehicles SET title = $1, brand = $2, model = $3, year = $4, color = $5, fuel_type = $6, transmission = $7, mileage = $8, price = $9, purchase_price = $10, description = $11, status = $12, interior_color = $13, doors = $14, vehicle_type = $15, financial_state = $16, documentation = $17, conservation = $18, features = $19, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $20 AND tenant_id = $21 RETURNING *`,
         [
           title,
           brand,
@@ -145,11 +161,16 @@ router.put(
           transmission,
           mileage,
           price,
+          purchase_price || null,
           description,
           status,
           interior_color,
           doors,
           vehicle_type,
+          financial_state || "paid",
+          documentation || [],
+          conservation || [],
+          features || [],
           req.params.id,
           req.user?.tenant_id,
         ],
@@ -159,7 +180,7 @@ router.put(
         return res.status(404).json({ message: "Vehicle not found" })
       }
 
-      res.json({ message: "Vehicle updated", vehicle: result.rows[0] })
+      res.json(result.rows[0])
     } catch (err) {
       console.error("Error:", err)
       res.status(500).json({ message: "Error updating vehicle" })

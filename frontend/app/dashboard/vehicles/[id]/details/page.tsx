@@ -1,8 +1,8 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
-import { useRouter, useParams } from "next/navigation";
-import Link from "next/link";
+import { useEffect, useState } from "react"
+import { useRouter, useParams } from "next/navigation"
+import Link from "next/link"
 import {
   Car,
   ArrowLeft,
@@ -17,100 +17,99 @@ import {
   FileText,
   Tag,
   Clock,
-} from "lucide-react";
+} from "lucide-react"
 
 interface Vehicle {
-  id: string;
-  title: string;
-  brand: string;
-  model: string;
-  year: number;
-  price: number;
-  status: string;
-  mileage: number;
-  color: string;
-  fuel_type: string;
-  transmission: string;
-  description: string;
-  doors: number;
-  vehicle_type: string;
-  interior_color: string;
-  created_at: string;
-  updated_at: string;
+  id: string
+  title: string
+  brand: string
+  model: string
+  year: number
+  price: number
+  purchase_price?: number
+  status: string
+  mileage: number
+  color: string
+  fuel_type: string
+  transmission: string
+  description: string
+  doors: number
+  vehicle_type: string
+  interior_color: string
+  created_at: string
+  updated_at: string
+  financial_state?: string
+  documentation?: string[]
+  conservation?: string[]
+  features?: string[]
 }
 
 export default function VehicleDetailsPage() {
-  const router = useRouter();
-  const params = useParams();
-  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const router = useRouter()
+  const params = useParams()
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState("")
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("token")
     if (!token) {
-      router.push("/auth/login");
-      return;
+      router.push("/auth/login")
+      return
     }
-    fetchVehicle();
-  }, [params.id]);
+    fetchVehicle()
+  }, [params.id])
 
   const fetchVehicle = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/vehicles/${params.id}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const token = localStorage.getItem("token")
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/vehicles/${params.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       if (res.ok) {
-        setVehicle(await res.json());
+        setVehicle(await res.json())
       } else {
-        setError("Veiculo nao encontrado");
+        setError("Veiculo nao encontrado")
       }
     } catch (err) {
-      setError("Erro ao carregar veiculo");
+      setError("Erro ao carregar veiculo")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   const statusBadge = (status: string) => {
     switch (status) {
       case "available":
-        return <span className="badge badge-green">Disponivel</span>;
+        return <span className="badge badge-green">Disponivel</span>
       case "inactive":
-        return <span className="badge badge-yellow">Inativo</span>;
+        return <span className="badge badge-yellow">Inativo</span>
       case "reserved":
-        return <span className="badge badge-blue">Reservado</span>;
+        return <span className="badge badge-blue">Reservado</span>
       case "sold":
-        return <span className="badge badge-red">Vendido</span>;
+        return <span className="badge badge-red">Vendido</span>
       case "archived":
-        return <span className="badge badge-red">Arquivado</span>;
+        return <span className="badge badge-red">Arquivado</span>
       default:
-        return <span className="badge badge-gray">{status}</span>;
+        return <span className="badge badge-gray">{status}</span>
     }
-  };
+  }
 
   const formatPrice = (price: number) => {
-    if (!price) return "Sob consulta";
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(Number(price));
-  };
+    if (!price) return "Sob consulta"
+    return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(price))
+  }
 
   const formatDate = (date: string) => {
-    if (!date) return "-";
+    if (!date) return "-"
     return new Date(date).toLocaleDateString("pt-BR", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
-    });
-  };
+    })
+  }
 
   const fuelLabel = (fuel: string) => {
     const map: Record<string, string> = {
@@ -120,28 +119,25 @@ export default function VehicleDetailsPage() {
       diesel: "Diesel",
       electric: "Eletrico",
       hybrid: "Hibrido",
-    };
-    return map[fuel] || fuel || "-";
-  };
+    }
+    return map[fuel] || fuel || "-"
+  }
 
   const transmissionLabel = (t: string) => {
     const map: Record<string, string> = {
       automatic: "Automatico",
       manual: "Manual",
       cvt: "CVT",
-    };
-    return map[t] || t || "-";
-  };
+    }
+    return map[t] || t || "-"
+  }
 
   if (loading) {
     return (
-      <div
-        className="flex items-center justify-center"
-        style={{ minHeight: "50vh" }}
-      >
+      <div className="flex items-center justify-center" style={{ minHeight: "50vh" }}>
         <div className="spinner" />
       </div>
-    );
+    )
   }
 
   if (error || !vehicle) {
@@ -149,21 +145,15 @@ export default function VehicleDetailsPage() {
       <div>
         <div className="card">
           <div className="empty-state">
-            <Car
-              className="w-10 h-10 mx-auto"
-              style={{ color: "var(--text-muted)" }}
-            />
+            <Car className="w-10 h-10 mx-auto" style={{ color: "var(--text-muted)" }} />
             <p>{error || "Veiculo nao encontrado"}</p>
-            <Link
-              href="/dashboard/vehicles"
-              className="btn-primary mt-4 inline-flex"
-            >
+            <Link href="/dashboard/vehicles" className="btn-primary mt-4 inline-flex">
               Voltar
             </Link>
           </div>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -179,30 +169,19 @@ export default function VehicleDetailsPage() {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-2xl font-bold">
-              {vehicle.title || `${vehicle.brand} ${vehicle.model}`}
-            </h1>
-            <p
-              className="text-sm mt-1"
-              style={{ color: "var(--text-secondary)" }}
-            >
+            <h1 className="text-2xl font-bold">{vehicle.title || `${vehicle.brand} ${vehicle.model}`}</h1>
+            <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
               {vehicle.brand} {vehicle.model} - {vehicle.year}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           {statusBadge(vehicle.status)}
-          <Link
-            href={`/dashboard/vehicles/${vehicle.id}`}
-            className="btn-primary"
-          >
+          <Link href={`/dashboard/vehicles/${vehicle.id}`} className="btn-primary">
             <Pencil className="w-4 h-4" />
             Editar
           </Link>
-          <Link
-            href={`/dashboard/vehicles/${vehicle.id}/images`}
-            className="btn-secondary"
-          >
+          <Link href={`/dashboard/vehicles/${vehicle.id}/images`} className="btn-secondary">
             <ImageIcon className="w-4 h-4" />
             Fotos
           </Link>
@@ -210,32 +189,17 @@ export default function VehicleDetailsPage() {
       </div>
 
       {/* Price card */}
-      <div
-        className="card mb-6"
-        style={{ borderLeft: "4px solid var(--accent-blue)" }}
-      >
+      <div className="card mb-6" style={{ borderLeft: "4px solid var(--accent-blue)" }}>
         <div className="flex items-center gap-3">
           <div
             className="flex items-center justify-center rounded-lg"
-            style={{
-              width: "3rem",
-              height: "3rem",
-              backgroundColor: "rgba(47, 129, 247, 0.1)",
-            }}
+            style={{ width: "3rem", height: "3rem", backgroundColor: "rgba(47, 129, 247, 0.1)" }}
           >
-            <DollarSign
-              className="w-6 h-6"
-              style={{ color: "var(--accent-blue)" }}
-            />
+            <DollarSign className="w-6 h-6" style={{ color: "var(--accent-blue)" }} />
           </div>
           <div>
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              Preco
-            </p>
-            <p
-              className="text-2xl font-bold"
-              style={{ color: "var(--accent-blue)" }}
-            >
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>Preco</p>
+            <p className="text-2xl font-bold" style={{ color: "var(--accent-blue)" }}>
               {formatPrice(vehicle.price)}
             </p>
           </div>
@@ -243,13 +207,7 @@ export default function VehicleDetailsPage() {
       </div>
 
       {/* Details grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-          gap: "1.5rem",
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem" }}>
         {/* Informacoes Basicas */}
         <div className="card">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
@@ -257,134 +215,163 @@ export default function VehicleDetailsPage() {
             Informacoes Basicas
           </h3>
           <div className="flex flex-col gap-3">
-            <DetailRow
-              icon={<Tag className="w-4 h-4" />}
-              label="Marca"
-              value={vehicle.brand || "-"}
-            />
-            <DetailRow
-              icon={<Car className="w-4 h-4" />}
-              label="Modelo"
-              value={vehicle.model || "-"}
-            />
-            <DetailRow
-              icon={<Calendar className="w-4 h-4" />}
-              label="Ano"
-              value={String(vehicle.year || "-")}
-            />
-            <DetailRow
-              icon={<Palette className="w-4 h-4" />}
-              label="Cor"
-              value={vehicle.color || "-"}
-            />
-            <DetailRow
-              icon={<Palette className="w-4 h-4" />}
-              label="Cor Interna"
-              value={vehicle.interior_color || "-"}
-            />
-            <DetailRow
-              icon={<FileText className="w-4 h-4" />}
-              label="Tipo"
-              value={vehicle.vehicle_type || "-"}
-            />
-            <DetailRow
-              icon={<Settings2 className="w-4 h-4" />}
-              label="Portas"
-              value={String(vehicle.doors || "-")}
-            />
+            <DetailRow icon={<Tag className="w-4 h-4" />} label="Marca" value={vehicle.brand || "-"} />
+            <DetailRow icon={<Car className="w-4 h-4" />} label="Modelo" value={vehicle.model || "-"} />
+            <DetailRow icon={<Calendar className="w-4 h-4" />} label="Ano" value={String(vehicle.year || "-")} />
+            <DetailRow icon={<Palette className="w-4 h-4" />} label="Cor" value={vehicle.color || "-"} />
+            <DetailRow icon={<Palette className="w-4 h-4" />} label="Cor Interna" value={vehicle.interior_color || "-"} />
+            <DetailRow icon={<FileText className="w-4 h-4" />} label="Tipo" value={vehicle.vehicle_type || "-"} />
+            <DetailRow icon={<Settings2 className="w-4 h-4" />} label="Portas" value={String(vehicle.doors || "-")} />
           </div>
         </div>
 
         {/* Especificacoes Tecnicas */}
         <div className="card">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Settings2
-              className="w-4 h-4"
-              style={{ color: "var(--accent-green-light)" }}
-            />
+            <Settings2 className="w-4 h-4" style={{ color: "var(--accent-green-light)" }} />
             Especificacoes Tecnicas
           </h3>
           <div className="flex flex-col gap-3">
-            <DetailRow
-              icon={<Gauge className="w-4 h-4" />}
-              label="Quilometragem"
-              value={
-                vehicle.mileage
-                  ? `${vehicle.mileage.toLocaleString("pt-BR")} km`
-                  : "-"
-              }
-            />
-            <DetailRow
-              icon={<Fuel className="w-4 h-4" />}
-              label="Combustivel"
-              value={fuelLabel(vehicle.fuel_type)}
-            />
-            <DetailRow
-              icon={<Settings2 className="w-4 h-4" />}
-              label="Transmissao"
-              value={transmissionLabel(vehicle.transmission)}
-            />
+            <DetailRow icon={<Gauge className="w-4 h-4" />} label="Quilometragem" value={vehicle.mileage ? `${vehicle.mileage.toLocaleString("pt-BR")} km` : "-"} />
+            <DetailRow icon={<Fuel className="w-4 h-4" />} label="Combustivel" value={fuelLabel(vehicle.fuel_type)} />
+            <DetailRow icon={<Settings2 className="w-4 h-4" />} label="Transmissao" value={transmissionLabel(vehicle.transmission)} />
+          </div>
+        </div>
+
+        {/* Valores */}
+        <div className="card">
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <DollarSign className="w-4 h-4" style={{ color: "var(--accent-green)" }} />
+            Valores
+          </h3>
+          <div className="flex flex-col gap-3">
+            <DetailRow icon={<DollarSign className="w-4 h-4" />} label="Venda" value={formatPrice(vehicle.price)} />
+            <DetailRow icon={<DollarSign className="w-4 h-4" />} label="Compra" value={formatPrice(vehicle.purchase_price)} />
           </div>
         </div>
 
         {/* Datas */}
         <div className="card">
           <h3 className="font-semibold mb-4 flex items-center gap-2">
-            <Clock
-              className="w-4 h-4"
-              style={{ color: "var(--accent-yellow)" }}
-            />
+            <Clock className="w-4 h-4" style={{ color: "var(--accent-yellow)" }} />
             Datas
           </h3>
           <div className="flex flex-col gap-3">
-            <DetailRow
-              icon={<Calendar className="w-4 h-4" />}
-              label="Cadastrado em"
-              value={formatDate(vehicle.created_at)}
-            />
-            <DetailRow
-              icon={<Clock className="w-4 h-4" />}
-              label="Atualizado em"
-              value={formatDate(vehicle.updated_at)}
-            />
+            <DetailRow icon={<Calendar className="w-4 h-4" />} label="Cadastrado em" value={formatDate(vehicle.created_at)} />
+            <DetailRow icon={<Clock className="w-4 h-4" />} label="Atualizado em" value={formatDate(vehicle.updated_at)} />
           </div>
         </div>
       </div>
+
+      {/* Estado Financeiro */}
+      {vehicle.financial_state && (
+        <div className="card mt-6">
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <DollarSign className="w-4 h-4" style={{ color: "var(--accent-blue)" }} />
+            Estado Financeiro
+          </h3>
+          <span className="badge badge-green">
+            {vehicle.financial_state === 'paid' ? 'Veículo quitado' : 'Veículo em financiamento'}
+          </span>
+        </div>
+      )}
+
+      {/* Documentação */}
+      {vehicle.documentation && vehicle.documentation.length > 0 && (
+        <div className="card mt-6">
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <FileText className="w-4 h-4" style={{ color: "var(--accent-purple)" }} />
+            Documentação e Regularização
+          </h3>
+          <div className="flex gap-2 flex-wrap">
+            {vehicle.documentation.map((doc: string) => {
+              const docMap: Record<string, string> = {
+                'ipva_paid': 'IPVA pago',
+                'with_fines': 'Com multas',
+                'auction_vehicle': 'Veículo de leilão'
+              }
+              return <span key={doc} className="badge badge-blue">{docMap[doc] || doc}</span>
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Conservação */}
+      {vehicle.conservation && vehicle.conservation.length > 0 && (
+        <div className="card mt-6">
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <Settings2 className="w-4 h-4" style={{ color: "var(--accent-green)" }} />
+            Conservação e Garantia
+          </h3>
+          <div className="flex gap-2 flex-wrap">
+            {vehicle.conservation.map((cons: string) => {
+              const consMap: Record<string, string> = {
+                'single_owner': 'Único dono',
+                'spare_key': 'Com chave reserva',
+                'with_manual': 'Com manual',
+                'factory_warranty': 'Com garantia de fábrica',
+                'dealer_service': 'Revisões em concessionária'
+              }
+              return <span key={cons} className="badge badge-green">{consMap[cons] || cons}</span>
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Itens de Série */}
+      {vehicle.features && vehicle.features.length > 0 && (
+        <div className="card mt-6">
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <Gauge className="w-4 h-4" style={{ color: "var(--accent-yellow)" }} />
+            Itens de Série
+          </h3>
+          <div className="flex gap-2 flex-wrap">
+            {vehicle.features.map((feat: string) => {
+              const featMap: Record<string, string> = {
+                'airbag': 'Airbag',
+                'alarm': 'Alarme',
+                'rear_camera': 'Câmera de ré',
+                'rear_sensor': 'Sensor de ré',
+                'blind_spot': 'Blindado',
+                'ac': 'Ar Condicionado',
+                'sunroof': 'Teto Solar',
+                'leather_seats': 'Bancos de Couro',
+                'power_steering': 'Trava elétrica',
+                'power_windows': 'Vidro elétrico',
+                'usb': 'Conexão USB',
+                'multifunction_wheel': 'Volante multifuncional',
+                'bluetooth': 'Bluetooth',
+                'sound_system': 'Som',
+                'onboard_computer': 'Computador de bordo',
+                'gps': 'Navegador GPS',
+                'cruise_control': 'Controle de velocidade',
+                'traction_control': 'Tração 4x4',
+                'alloy_wheels': 'Rodas de liga leve',
+                'gnv_kit': 'Kit GNV'
+              }
+              return <span key={feat} className="badge badge-blue">{featMap[feat] || feat}</span>
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Descricao */}
       {vehicle.description && (
         <div className="card mt-6">
           <h3 className="font-semibold mb-3 flex items-center gap-2">
-            <FileText
-              className="w-4 h-4"
-              style={{ color: "var(--accent-purple)" }}
-            />
+            <FileText className="w-4 h-4" style={{ color: "var(--accent-purple)" }} />
             Descricao
           </h3>
-          <p
-            style={{
-              color: "var(--text-secondary)",
-              lineHeight: 1.6,
-              whiteSpace: "pre-wrap",
-            }}
-          >
+          <p style={{ color: "var(--text-secondary)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
             {vehicle.description}
           </p>
         </div>
       )}
     </div>
-  );
+  )
 }
 
-function DetailRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
+function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div
       className="flex items-center justify-between"
@@ -393,16 +380,11 @@ function DetailRow({
         borderBottom: "1px solid var(--border-light)",
       }}
     >
-      <div
-        className="flex items-center gap-2"
-        style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}
-      >
+      <div className="flex items-center gap-2" style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>
         {icon}
         {label}
       </div>
-      <span className="font-medium" style={{ fontSize: "0.875rem" }}>
-        {value}
-      </span>
+      <span className="font-medium" style={{ fontSize: "0.875rem" }}>{value}</span>
     </div>
-  );
+  )
 }
