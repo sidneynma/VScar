@@ -409,3 +409,19 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.875rem;
   color: var(--text-muted);
 }
+
+/* ===== FIX SELECT FIREFOX ===== */
+
+select.form-input {
+  background-color: var(--bg-input) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-color);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+}
+
+select.form-input option {
+  background-color: #161b22 !important;
+  color: #e6edf3 !important;
+}

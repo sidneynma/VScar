@@ -1,88 +1,94 @@
-"use client"
+"use client";
 
-import { useCallback } from "react"
-import { useRouter } from "next/navigation"
-import axios from "axios"
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
 
 interface User {
-  id: string
-  email: string
-  name: string
-  role: string
-  tenant_id: string
-}
-
-interface AuthContextType {
-  user: User | null
-  token: string | null
-  isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<void>
-  register: (data: RegisterData) => Promise<void>
-  logout: () => void
-  isLoading: boolean
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  tenant_id: string;
 }
 
 interface RegisterData {
-  tenant_name: string
-  tenant_slug: string
-  name: string
-  email: string
-  password: string
+  tenant_name: string;
+  tenant_slug: string;
+  name: string;
+  email: string;
+  password: string;
 }
 
-export function useAuth(): AuthContextType {
-  const router = useRouter()
+export function useAuth() {
+  const router = useRouter();
 
-  const getStoredAuth = useCallback(() => {
-    if (typeof window === "undefined") {
-      return { user: null, token: null }
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // 🔥 Carrega auth ao iniciar
+  useEffect(() => {
+    const storedToken = localStorage.getItem("token");
+    const storedUser = localStorage.getItem("user");
+
+    if (storedToken && storedUser) {
+      setToken(storedToken);
+      setUser(JSON.parse(storedUser));
     }
 
-    const token = localStorage.getItem("token")
-    const user = localStorage.getItem("user")
-    return {
-      token,
-      user: user ? JSON.parse(user) : null,
-    }
-  }, [])
+    setIsLoading(false);
+  }, []);
 
   const login = useCallback(
     async (email: string, password: string) => {
-      try {
-        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, { email, password })
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
+        { email, password }
+      );
 
-        localStorage.setItem("token", response.data.token)
-        localStorage.setItem("user", JSON.stringify(response.data.user))
-        router.push("/dashboard")
-      } catch (error: any) {
-        throw new Error(error.response?.data?.message || "Erro ao fazer login")
-      }
+      const { token, user } = response.data;
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      setToken(token);
+      setUser(user);
+
+      router.push("/dashboard");
     },
-    [router],
-  )
+    [router]
+  );
 
   const register = useCallback(
     async (data: RegisterData) => {
-      try {
-        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`, data)
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`,
+        data
+      );
 
-        localStorage.setItem("token", response.data.token)
-        localStorage.setItem("user", JSON.stringify(response.data.user))
-        router.push("/dashboard")
-      } catch (error: any) {
-        throw new Error(error.response?.data?.message || "Erro ao criar conta")
-      }
+      const { token, user } = response.data;
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      setToken(token);
+      setUser(user);
+
+      router.push("/dashboard");
     },
-    [router],
-  )
+    [router]
+  );
 
   const logout = useCallback(() => {
-    localStorage.removeItem("token")
-    localStorage.removeItem("user")
-    router.push("/auth/login")
-  }, [router])
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
 
-  const { user, token } = getStoredAuth()
+    setToken(null);
+    setUser(null);
+
+    router.push("/auth/login");
+  }, [router]);
 
   return {
     user,
@@ -91,6 +97,6 @@ export function useAuth(): AuthContextType {
     login,
     register,
     logout,
-    isLoading: false,
-  }
+    isLoading,
+  };
 }
