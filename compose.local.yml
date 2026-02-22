@@ -16,6 +16,7 @@ services:
       API_PORT: 3001
       JWT_SECRET: dev_jwt_secret_key_change_in_production
       JWT_EXPIRES_IN: 7d
+      FIPE_BASE_URL: https://veiculos.fipe.org.br/api/veiculos
     ports:
       - "3001:3001"
     networks:
@@ -31,7 +32,7 @@ services:
       dockerfile: Dockerfile
     container_name: vscar-frontend-local
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3001
+      NEXT_PUBLIC_API_URL: http://localhost:3001      
       NODE_ENV: development
     ports:
       - "3000:3000"

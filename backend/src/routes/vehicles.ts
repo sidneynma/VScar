@@ -2,8 +2,10 @@ import express, { type Response } from "express"
 import { pool } from "../index"
 import { authMiddleware, type AuthRequest, requireRole } from "../middleware/auth"
 import { v4 as uuidv4 } from "uuid"
+import { FipeService } from "../services/fipe-service";
 
 const router = express.Router()
+const fipeService = new FipeService();
 
 // List vehicles
 router.get("/", authMiddleware, async (req: AuthRequest, res: Response) => {
@@ -28,41 +30,17 @@ router.get("/", authMiddleware, async (req: AuthRequest, res: Response) => {
 })
 
 // Create vehicle
-router.post("/", authMiddleware, requireRole("admin", "manager", "seller"), async (req: AuthRequest, res: Response) => {
-  try {
-    const {
-      title,
-      brand,
-      model,
-      year,
-      color,
-      fuel_type,
-      transmission,
-      mileage,
-      price,
-      purchase_price,
-      description,
-      interior_color,
-      doors,
-      vehicle_type,
-      financial_state,
-      documentation,
-      conservation,
-      features,
-      revenda_id,
-    } = req.body
+router.post(
+  "/",
+  authMiddleware,
+  requireRole("admin", "manager", "seller"),
+  async (req: AuthRequest, res: Response) => {
+    const client = await pool.connect();
 
-    if (!title || !brand || !model || !year || !price) {
-      return res.status(400).json({ message: "Missing required fields" })
-    }
+    try {
+      await client.query("BEGIN");
 
-    const result = await pool.query(
-      `INSERT INTO vehicles (id, tenant_id, revenda_id, title, brand, model, year, color, fuel_type, transmission, mileage, price, purchase_price, description, interior_color, doors, vehicle_type, financial_state, documentation, conservation, features)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *`,
-      [
-        uuidv4(),
-        req.user?.tenant_id,
-        revenda_id || null,
+      const {
         title,
         brand,
         model,
@@ -72,25 +50,162 @@ router.post("/", authMiddleware, requireRole("admin", "manager", "seller"), asyn
         transmission,
         mileage,
         price,
-        purchase_price || null,
+        purchase_price,
         description,
         interior_color,
         doors,
-        vehicle_type || "car",
-        financial_state || "paid",
-        documentation || [],
-        conservation || [],
-        features || [],
-      ],
-    )
+        vehicle_type,
+        financial_state,
+        documentation,
+        conservation,
+        features,
+        revenda_id,
 
-    const vehicle = result.rows[0]
-    res.status(201).json(vehicle)
-  } catch (err) {
-    console.error("Error:", err)
-    res.status(500).json({ message: "Error creating vehicle" })
+        // FIPE códigos enviados do frontend
+        marca_codigo,
+        modelo_codigo,
+        ano_codigo,
+        tipoVeiculo,
+      } = req.body;
+
+      if (!title || !brand || !model || !year || !price) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // 1️⃣ Criar veículo
+      const result = await client.query(
+        `INSERT INTO vehicles (
+          id, tenant_id, revenda_id,
+          title, brand, model, year,
+          color, fuel_type, transmission,
+          mileage, price, purchase_price,
+          description, interior_color,
+          doors, vehicle_type,
+          financial_state,
+          documentation, conservation, features
+        )
+        VALUES (
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+          $11,$12,$13,$14,$15,$16,$17,$18,
+          $19,$20,$21
+        )
+        RETURNING *`,
+        [
+          uuidv4(),
+          req.user?.tenant_id,
+          revenda_id || null,
+          title,
+          brand,
+          model,
+          year,
+          color,
+          fuel_type,
+          transmission,
+          mileage,
+          price,
+          purchase_price || null,
+          description,
+          interior_color,
+          doors,
+          vehicle_type || "car",
+          financial_state || "paid",
+          documentation || [],
+          conservation || [],
+          features || [],
+        ]
+      );
+
+      const vehicle = result.rows[0];
+
+      // 2️⃣ Buscar últimas 3 referências
+      const refResult = await client.query(`
+        SELECT *
+        FROM fipe_reference
+        ORDER BY codigo_tabela DESC
+        LIMIT 3
+      `);
+
+      const referencias = refResult.rows;
+
+      let currentValue = null;
+
+      for (let i = 0; i < referencias.length; i++) {
+        const ref = referencias[i];
+
+        // 🔥 Aqui você chama seu service FIPE
+        const consulta = await fipeService.getValorComReferencia(
+          ref.codigo_tabela, // 1️⃣ referência
+          tipoVeiculo, // 2️⃣ tipo veículo
+          marca_codigo, // 3️⃣ marca
+          modelo_codigo, // 4️⃣ modelo
+          ano_codigo // 5️⃣ ano
+        );
+        
+        const valorNumerico = parseFloat(
+          consulta.Valor.replace("R$ ", "").replace(/\./g, "").replace(",", ".")
+        );
+
+        await client.query(
+          `INSERT INTO fipe_consult_history (
+            vehicle_id,
+            fipe_reference_id,
+            valor,
+            codigo_fipe,
+            marca,
+            modelo,
+            ano_modelo,
+            combustivel,
+            autenticacao,
+            sigla_combustivel,
+            data_consulta,
+            raw_json
+          )
+          VALUES (
+            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
+          )`,
+          [
+            vehicle.id,
+            ref.id,
+            valorNumerico,
+            consulta.CodigoFipe,
+            consulta.Marca,
+            consulta.Modelo,
+            consulta.AnoModelo,
+            consulta.Combustivel,
+            consulta.Autenticacao,
+            consulta.SiglaCombustivel,
+            new Date(),
+            consulta,
+          ]
+        );
+
+        if (i === 0) {
+          currentValue = valorNumerico;
+        }
+      }
+
+      // 3️⃣ Atualizar valor atual
+      if (currentValue) {
+        await client.query(
+          `UPDATE vehicles
+           SET current_fipe_value = $1
+           WHERE id = $2`,
+          [currentValue, vehicle.id]
+        );
+      }
+
+      await client.query("COMMIT");
+
+      res.status(201).json(vehicle);
+    } catch (err) {
+      await client.query("ROLLBACK");
+      console.error(err);
+      res.status(500).json({ message: "Error creating vehicle" });
+    } finally {
+      client.release();
+    }
   }
-})
+);
 
 // Get vehicle with images
 router.get("/:id", authMiddleware, async (req: AuthRequest, res: Response) => {
