@@ -141,7 +141,7 @@ export default function NewVehiclePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [consultLoading, setConsultLoading] = useState(false);
-
+  const [fipeError, setFipeError] = useState(false);
   const [marcas, setMarcas] = useState<any[]>([]);
   const [modelos, setModelos] = useState<any[]>([]);
   const [anos, setAnos] = useState<any[]>([]);
@@ -186,14 +186,26 @@ export default function NewVehiclePage() {
   // ==============================
 
   const loadMarcas = async (tipo: number) => {
-    setConsultLoading(true);
     try {
+      setConsultLoading(true);
+
       const res = await fetch(`${API}/api/fipe/marcas/${tipo}`);
-      setMarcas(await res.json());
+
+     if (!res.ok) {
+       setFipeError(true);
+       setMarcas([]);
+       return; // 🔥 não precisa lançar erro
+     }
+
+      const data = await res.json();
+
+      setMarcas(Array.isArray(data) ? data : []);
       setModelos([]);
       setAnos([]);
     } catch (err) {
       console.error("Erro ao carregar marcas", err);
+      setFipeError(true);
+      setMarcas([]); // 🔥 nunca deixa undefined
     } finally {
       setConsultLoading(false);
     }
@@ -326,13 +338,23 @@ export default function NewVehiclePage() {
     try {
       const token = localStorage.getItem("token");
 
+      const payload = {
+        ...formData,
+
+        // 🔥 CÓDIGOS FIPE NECESSÁRIOS PARA HISTÓRICO
+        marca_codigo: fipeConsult.marca,
+        modelo_codigo: fipeConsult.modelo,
+        ano_codigo: fipeConsult.ano,
+        tipoVeiculo: fipeConsult.tipoVeiculo,
+      };
+
       const res = await fetch(`${API}/api/vehicles`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -385,8 +407,12 @@ return (
               ))}
             </select>
           </div>
-
           <div>
+            {fipeError && !consultLoading && (
+              <div className="text-red-500 text-sm">
+                Serviço FIPE temporariamente indisponível
+              </div>
+            )}
             <label className="form-label">Marca</label>
             <select
               name="marca"
@@ -396,7 +422,7 @@ return (
               disabled={consultLoading}
             >
               <option value="">Selecione uma marca</option>
-              {marcas.map((m) => (
+              {marcas?.map((m) => (
                 <option key={m.Codigo} value={m.Codigo}>
                   {m.Nome}
                 </option>
@@ -882,7 +908,6 @@ return (
             className="form-input"
           />
         </div>
-
         <div className="flex gap-3 justify-end mb-6">
           <Link href="/dashboard/vehicles" className="btn-secondary">
             Cancelar

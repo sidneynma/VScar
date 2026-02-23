@@ -1,9 +1,8 @@
 import { Router } from "express";
-import { Pool } from "pg";
+import { pool } from "../index"; // 🔥 usar pool global
 import { FipeService } from "../services/fipe-service";
 
 const router = Router();
-const pool = new Pool();
 const fipeService = new FipeService();
 
 /**
@@ -26,7 +25,7 @@ async function getReferenciaAtual(): Promise<number> {
     return result.rows[0].codigo_tabela;
   } catch (err) {
     console.error("Erro ao buscar referência no banco:", err);
-    return 330; // fallback se banco falhar
+    return 330; // fallback seguro
   }
 }
 
@@ -35,7 +34,6 @@ async function getReferenciaAtual(): Promise<number> {
 router.get("/marcas/:tipo", async (req, res) => {
   try {
     const { tipo } = req.params;
-
     const referencia = await getReferenciaAtual();
 
     const marcas = await fipeService.getMarcas(Number(tipo), referencia);
@@ -52,7 +50,6 @@ router.get("/marcas/:tipo", async (req, res) => {
 router.get("/modelos/:tipo/:marca", async (req, res) => {
   try {
     const { tipo, marca } = req.params;
-
     const referencia = await getReferenciaAtual();
 
     const modelos = await fipeService.getModelos(
@@ -73,7 +70,6 @@ router.get("/modelos/:tipo/:marca", async (req, res) => {
 router.get("/anos/:tipo/:marca/:modelo", async (req, res) => {
   try {
     const { tipo, marca, modelo } = req.params;
-
     const referencia = await getReferenciaAtual();
 
     const anos = await fipeService.getAnos(
@@ -95,7 +91,6 @@ router.get("/anos/:tipo/:marca/:modelo", async (req, res) => {
 router.get("/valor/:tipo/:marca/:modelo/:ano", async (req, res) => {
   try {
     const { tipo, marca, modelo, ano } = req.params;
-
     const referencia = await getReferenciaAtual();
 
     const valor = await fipeService.getValorComReferencia(

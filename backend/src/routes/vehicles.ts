@@ -3,9 +3,11 @@ import { pool } from "../index"
 import { authMiddleware, type AuthRequest, requireRole } from "../middleware/auth"
 import { v4 as uuidv4 } from "uuid"
 import { FipeService } from "../services/fipe-service";
+import { VEHICLE_STATUS, VEHICLE_TYPES } from "../constants/vehicle.constants";
 
 const router = express.Router()
 const fipeService = new FipeService();
+const status = VEHICLE_STATUS.AVAILABLE;
 
 // List vehicles
 router.get("/", authMiddleware, async (req: AuthRequest, res: Response) => {
@@ -28,6 +30,7 @@ router.get("/", authMiddleware, async (req: AuthRequest, res: Response) => {
     res.status(500).json({ message: "Error fetching vehicles" })
   }
 })
+
 
 // Create vehicle
 router.post(
@@ -72,6 +75,17 @@ router.post(
         return res.status(400).json({ message: "Missing required fields" });
       }
 
+      const vehicleTypeMap: Record<string, string> = {
+        Carro: VEHICLE_TYPES.CAR,
+        Moto: VEHICLE_TYPES.MOTORCYCLE,
+        Caminhão: VEHICLE_TYPES.TRUCK,
+        Van: VEHICLE_TYPES.VAN,
+        SUV: VEHICLE_TYPES.SUV,
+      };
+
+      const normalizedVehicleType =
+        vehicleTypeMap[vehicle_type] || VEHICLE_TYPES.CAR;
+
       // 1️⃣ Criar veículo
       const result = await client.query(
         `INSERT INTO vehicles (
@@ -107,80 +121,107 @@ router.post(
           description,
           interior_color,
           doors,
-          vehicle_type || "car",
+          normalizedVehicleType,
           financial_state || "paid",
-          documentation || [],
-          conservation || [],
-          features || [],
+          JSON.stringify(documentation || []),
+          JSON.stringify(conservation || []),
+          JSON.stringify(features || []),
         ]
       );
 
       const vehicle = result.rows[0];
 
-      // 2️⃣ Buscar últimas 3 referências
-      const refResult = await client.query(`
-        SELECT *
-        FROM fipe_reference
-        ORDER BY codigo_tabela DESC
-        LIMIT 3
-      `);
+      // 2️⃣ Buscar últimas 3 referências direto da FIPE
+      // 2️⃣ Histórico FIPE automático
+      let currentValue: number | null = null;
 
-      const referencias = refResult.rows;
+      if (marca_codigo && modelo_codigo && ano_codigo && tipoVeiculo) {
+        console.log("ENTROU NO BLOCO FIPE");
+        try {
+          const referenciasFipe = await fipeService.getUltimas3Referencias();
+          console.log("REFERENCIAS FIPE:", referenciasFipe);
 
-      let currentValue = null;
+          for (let i = 0; i < referenciasFipe.length; i++) {
+            console.log("PROCESSANDO REFERENCIA:", referenciasFipe[i]);
+            const refFipe = referenciasFipe[i];
 
-      for (let i = 0; i < referencias.length; i++) {
-        const ref = referencias[i];
+            // Upsert da referência
+            console.log("SALVANDO HISTORICO");
+            const insertRef = await client.query(
+              `
+        INSERT INTO fipe_reference (codigo_tabela, mes_referencia, ano, mes)
+        VALUES ($1,$2,$3,$4)
+        ON CONFLICT (codigo_tabela)
+        DO UPDATE SET mes_referencia = EXCLUDED.mes_referencia
+        RETURNING *
+        `,
+              [
+                refFipe.Codigo,
+                refFipe.Mes,
+                new Date().getFullYear(),
+                new Date().getMonth() + 1,
+              ]
+            );
 
-        // 🔥 Aqui você chama seu service FIPE
-        const consulta = await fipeService.getValorComReferencia(
-          ref.codigo_tabela, // 1️⃣ referência
-          tipoVeiculo, // 2️⃣ tipo veículo
-          marca_codigo, // 3️⃣ marca
-          modelo_codigo, // 4️⃣ modelo
-          ano_codigo // 5️⃣ ano
-        );
-        
-        const valorNumerico = parseFloat(
-          consulta.Valor.replace("R$ ", "").replace(/\./g, "").replace(",", ".")
-        );
+            const ref = insertRef.rows[0];
 
-        await client.query(
-          `INSERT INTO fipe_consult_history (
-            vehicle_id,
-            fipe_reference_id,
-            valor,
-            codigo_fipe,
-            marca,
-            modelo,
-            ano_modelo,
-            combustivel,
-            autenticacao,
-            sigla_combustivel,
-            data_consulta,
-            raw_json
-          )
-          VALUES (
-            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12
-          )`,
-          [
-            vehicle.id,
-            ref.id,
-            valorNumerico,
-            consulta.CodigoFipe,
-            consulta.Marca,
-            consulta.Modelo,
-            consulta.AnoModelo,
-            consulta.Combustivel,
-            consulta.Autenticacao,
-            consulta.SiglaCombustivel,
-            new Date(),
-            consulta,
-          ]
-        );
+            // 🔥 Consulta valor FIPE
+            const consulta = await fipeService.getValorComReferencia(
+              ref.codigo_tabela,
+              Number(tipoVeiculo),
+              marca_codigo,
+              modelo_codigo,
+              ano_codigo
+            );
 
-        if (i === 0) {
-          currentValue = valorNumerico;
+            if (!consulta || !consulta.Valor) continue;
+
+            const valorNumerico = parseFloat(
+              consulta.Valor.replace("R$ ", "")
+                .replace(/\./g, "")
+                .replace(",", ".")
+            );
+
+            await client.query(
+              `
+        INSERT INTO fipe_consult_history (
+          vehicle_id,
+          fipe_reference_id,
+          valor,
+          codigo_fipe,
+          marca,
+          modelo,
+          ano_modelo,
+          combustivel,
+          autenticacao,
+          sigla_combustivel,
+          data_consulta,
+          raw_json
+        )
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+        `,
+              [
+                vehicle.id,
+                ref.id,
+                valorNumerico,
+                consulta.CodigoFipe,
+                consulta.Marca,
+                consulta.Modelo,
+                consulta.AnoModelo,
+                consulta.Combustivel,
+                consulta.Autenticacao,
+                consulta.SiglaCombustivel,
+                new Date(),
+                JSON.stringify(consulta),
+              ]
+            );
+
+            if (i === 0) {
+              currentValue = valorNumerico;
+            }
+          }
+        } catch (fipeError) {
+          console.error("Erro ao gerar histórico FIPE:", fipeError);
         }
       }
 
@@ -262,6 +303,16 @@ router.put(
         conservation,
         features,
       } = req.body
+      const vehicleTypeMap: Record<string, string> = {
+        Carro: VEHICLE_TYPES.CAR,
+        Moto: VEHICLE_TYPES.MOTORCYCLE,
+        Caminhão: VEHICLE_TYPES.TRUCK,
+        Van: VEHICLE_TYPES.VAN,
+        SUV: VEHICLE_TYPES.SUV,
+      };
+
+      const normalizedVehicleType =
+        vehicleTypeMap[vehicle_type] || vehicle_type;
 
       const result = await pool.query(
         `UPDATE vehicles SET title = $1, brand = $2, model = $3, year = $4, color = $5, fuel_type = $6, transmission = $7, mileage = $8, price = $9, purchase_price = $10, description = $11, status = $12, interior_color = $13, doors = $14, vehicle_type = $15, financial_state = $16, documentation = $17, conservation = $18, features = $19, updated_at = CURRENT_TIMESTAMP
@@ -281,15 +332,15 @@ router.put(
           status,
           interior_color,
           doors,
-          vehicle_type,
+          normalizedVehicleType,
           financial_state || "paid",
-          documentation || [],
-          conservation || [],
-          features || [],
+          JSON.stringify(documentation || []),
+          JSON.stringify(conservation || []),
+          JSON.stringify(features || []),
           req.params.id,
           req.user?.tenant_id,
-        ],
-      )
+        ]
+      );
 
       if (result.rows.length === 0) {
         return res.status(404).json({ message: "Vehicle not found" })

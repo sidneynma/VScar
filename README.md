@@ -143,6 +143,208 @@ docker-compose config > docker-compose.prod.yml
 - \`POST /api/portals\` - Criar portal
 - \`POST /api/portals/:id/sync\` - Sincronizar com portal
 
+🔎 Integração FIPE e Histórico Automático
+Visão Geral
+
+Ao criar um veículo com dados provenientes da FIPE, o sistema:
+
+Consulta automaticamente as 3 últimas referências oficiais
+
+Salva essas referências na tabela fipe_reference
+
+Consulta o valor do veículo para cada referência
+
+Salva o histórico na tabela fipe_consult_history
+
+Atualiza o campo current_fipe_value na tabela vehicles
+
+📊 Fluxo Técnico Completo
+1️⃣ Frontend
+
+Na tela de criação do veículo:
+
+Consulta /api/fipe/marcas/:tipo
+
+Consulta /api/fipe/modelos/:tipo/:marca
+
+Consulta /api/fipe/anos/:tipo/:marca/:modelo
+
+Consulta /api/fipe/valor/:tipo/:marca/:modelo/:ano
+
+Após selecionar o ano, o frontend recebe:
+
+{
+  "CodigoFipe": "038003-2",
+  "Marca": "Acura",
+  "Modelo": "Integra GS 1.8",
+  "AnoModelo": 1992,
+  "Valor": "R$ 10.917,00",
+  "TipoVeiculo": 1,
+  "MesReferencia": "fevereiro/2026",
+  "Autenticacao": "...",
+  "SiglaCombustivel": "G"
+}
+
+No momento do submit, o frontend envia também:
+
+{
+  "marca_codigo": "1",
+  "modelo_codigo": "1",
+  "ano_codigo": "1992-1",
+  "tipoVeiculo": 1
+}
+
+Esses campos são obrigatórios para gerar o histórico.
+
+2️⃣ Backend - Criação do Veículo
+
+Arquivo: routes/vehicles.ts
+
+Fluxo:
+
+🔹 Etapa 1 - Criar veículo
+INSERT INTO vehicles (...)
+🔹 Etapa 2 - Buscar últimas 3 referências FIPE
+const referenciasFipe = await fipeService.getUltimas3Referencias();
+
+Exemplo retornado:
+
+[
+  { "Codigo": 330, "Mes": "fevereiro/2026" },
+  { "Codigo": 329, "Mes": "janeiro/2026" },
+  { "Codigo": 328, "Mes": "dezembro/2025" }
+]
+3️⃣ Persistência das Referências
+
+Tabela: fipe_reference
+
+INSERT INTO fipe_reference (codigo_tabela, mes_referencia, ano, mes)
+ON CONFLICT (codigo_tabela)
+DO UPDATE SET mes_referencia = EXCLUDED.mes_referencia
+
+Evita duplicação.
+
+4️⃣ Histórico de Consulta
+
+Tabela: fipe_consult_history
+
+Para cada referência:
+
+INSERT INTO fipe_consult_history (
+  vehicle_id,
+  fipe_reference_id,
+  valor,
+  codigo_fipe,
+  marca,
+  modelo,
+  ano_modelo,
+  combustivel,
+  autenticacao,
+  sigla_combustivel,
+  data_consulta,
+  raw_json
+)
+5️⃣ Atualização do valor atual
+
+Após salvar o histórico:
+
+UPDATE vehicles
+SET current_fipe_value = $1
+WHERE id = $2
+
+O valor atual sempre corresponde à referência mais recente.
+
+🗂 Estrutura das Tabelas Relacionadas
+vehicles
+
+id
+
+current_fipe_value
+
+fipe_reference_id (opcional futuro)
+
+fipe_reference
+
+id
+
+codigo_tabela
+
+mes_referencia
+
+ano
+
+mes
+
+fipe_consult_history
+
+id
+
+vehicle_id
+
+fipe_reference_id
+
+valor
+
+raw_json
+
+data_consulta
+
+🔐 Segurança
+
+Operação protegida por JWT multi-tenant
+
+Histórico gerado dentro de transaction (BEGIN / COMMIT)
+
+Em caso de erro FIPE → veículo ainda é criado
+
+Histórico é opcional, não bloqueia criação
+
+⚠️ Requisitos Importantes
+
+Para gerar histórico FIPE é obrigatório enviar:
+
+marca_codigo
+
+modelo_codigo
+
+ano_codigo
+
+tipoVeiculo
+
+Se qualquer um for undefined → histórico não será criado.
+
+🧠 Decisão Arquitetural
+
+O histórico FIPE é:
+
+Automático
+
+Versionado
+
+Auditável
+
+Base para futuro módulo financeiro
+
+🚀 Próxima evolução planejada
+
+Cálculo de variação percentual FIPE
+
+Dashboard financeiro
+
+Gráfico histórico por veículo
+
+Alerta de desvalorização
+
+📌 Conclusão
+
+O sistema agora possui:
+
+Versionamento real de valores FIPE
+
+Base para BI financeiro
+
+Estrutura preparada para expansão SaaS
+
 ## Contribuindo
 
 1. Crie uma branch para sua feature (\`git checkout -b feature/AmazingFeature\`)
