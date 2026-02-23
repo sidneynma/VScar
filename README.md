@@ -67,6 +67,7 @@ vscar/
 ├── docker-compose.yml
 ├── .env.local
 └── README.md
+
 ```
 
 ## Filas de Desenvolvimento
@@ -142,6 +143,19 @@ docker-compose config > docker-compose.prod.yml
 - \`GET /api/portals\` - Listar portais
 - \`POST /api/portals\` - Criar portal
 - \`POST /api/portals/:id/sync\` - Sincronizar com portal
+
+### Veiclos
+Cadastrar veículo
+    ↓
+Buscar 3 últimas referências na FIPE
+    ↓
+Salvar/atualizar fipe_reference
+    ↓
+Consultar valor 3 vezes
+    ↓
+Salvar histórico
+    ↓
+Atualizar current_fipe_value
 
 🔎 Integração FIPE e Histórico Automático
 Visão Geral

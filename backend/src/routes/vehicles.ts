@@ -216,23 +216,25 @@ router.post(
               ]
             );
 
+            // 3️⃣ Atualizar valor atual
+
             if (i === 0) {
-              currentValue = valorNumerico;
+              await client.query(
+                `
+      UPDATE vehicles
+      SET 
+        current_fipe_value = $1,
+        fipe_reference_id = $2,
+        fipe_code = $3
+      WHERE id = $4
+      `,
+                [valorNumerico, ref.id, consulta.CodigoFipe, vehicle.id]
+              );
             }
           }
         } catch (fipeError) {
           console.error("Erro ao gerar histórico FIPE:", fipeError);
         }
-      }
-
-      // 3️⃣ Atualizar valor atual
-      if (currentValue) {
-        await client.query(
-          `UPDATE vehicles
-           SET current_fipe_value = $1
-           WHERE id = $2`,
-          [currentValue, vehicle.id]
-        );
       }
 
       await client.query("COMMIT");
