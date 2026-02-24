@@ -39,13 +39,35 @@ const getSigningKey = (secret: string, dateStamp: string, region: string, servic
 const formatAmzDate = (date: Date) =>
   date.toISOString().replace(/[:-]|\.\d{3}/g, "")
 
-const signRequest = (method: "PUT" | "DELETE", objectKey: string, payloadHash: string, contentType?: string) => {
+const signRequest = (
+  method: "PUT" | "DELETE",
+  objectKey: string,
+  payloadHash: string,
+  options?: {
+    contentType?: string
+    region?: string
+    virtualHostStyle?: boolean
+  },
+) => {
   const now = new Date()
   const amzDate = formatAmzDate(now)
   const dateStamp = amzDate.slice(0, 8)
   const endpointUrl = new URL(STORAGE_ENDPOINT)
-  const host = endpointUrl.host
-  const canonicalUri = `/${STORAGE_BUCKET_NAME}/${objectKey}`
+  const objectPath = objectKey
+    .split("/")
+    .map((chunk) => encodeURIComponent(chunk))
+    .join("/")
+
+  const region = options?.region || STORAGE_REGION
+  const virtualHostStyle = options?.virtualHostStyle || false
+
+  const host = virtualHostStyle
+    ? `${STORAGE_BUCKET_NAME}.${endpointUrl.host}`
+    : endpointUrl.host
+
+  const canonicalUri = virtualHostStyle
+    ? `/${objectPath}`
+    : `/${STORAGE_BUCKET_NAME}/${objectPath}`
 
   const headers: Record<string, string> = {
     host,
@@ -53,7 +75,7 @@ const signRequest = (method: "PUT" | "DELETE", objectKey: string, payloadHash: s
     "x-amz-date": amzDate,
   }
 
-  if (contentType) headers["content-type"] = contentType
+  if (options?.contentType) headers["content-type"] = options.contentType
 
   const sortedHeaderEntries = Object.entries(headers).sort(([a], [b]) => a.localeCompare(b))
   const canonicalHeaders = sortedHeaderEntries.map(([k, v]) => `${k}:${v.trim()}\n`).join("")
@@ -68,7 +90,7 @@ const signRequest = (method: "PUT" | "DELETE", objectKey: string, payloadHash: s
     payloadHash,
   ].join("\n")
 
-  const credentialScope = `${dateStamp}/${STORAGE_REGION}/s3/aws4_request`
+  const credentialScope = `${dateStamp}/${region}/s3/aws4_request`
   const stringToSign = [
     "AWS4-HMAC-SHA256",
     amzDate,
@@ -76,12 +98,7 @@ const signRequest = (method: "PUT" | "DELETE", objectKey: string, payloadHash: s
     sha256Hex(canonicalRequest),
   ].join("\n")
 
-  const signingKey = getSigningKey(
-    STORAGE_SECRET_ACCESS_KEY,
-    dateStamp,
-    STORAGE_REGION,
-    "s3",
-  )
+  const signingKey = getSigningKey(STORAGE_SECRET_ACCESS_KEY, dateStamp, region, "s3")
 
   const signature = crypto.createHmac("sha256", signingKey).update(stringToSign).digest("hex")
 
@@ -92,8 +109,12 @@ const signRequest = (method: "PUT" | "DELETE", objectKey: string, payloadHash: s
     `Signature=${signature}`,
   ].join(", ")
 
+  const baseUrl = virtualHostStyle
+    ? `${endpointUrl.protocol}//${host}`
+    : STORAGE_ENDPOINT
+
   return {
-    url: `${STORAGE_ENDPOINT}${canonicalUri}`,
+    url: `${baseUrl}${canonicalUri}`,
     headers: {
       ...headers,
       Authorization: authorization,
@@ -120,27 +141,50 @@ const uploadToMinio = async (vehicleId: string, tenantId: string, image: Incomin
   const payloadHash = sha256Hex(body)
   const contentType = image.mime_type || "image/jpeg"
 
-  const signed = signRequest("PUT", objectKey, payloadHash, contentType)
+  const regionsToTry = [STORAGE_REGION, "sa-east-1", "us-east-1"]
+    .filter(Boolean)
+    .filter((value, index, array) => array.indexOf(value) === index)
 
-  try {
-    const response = await axios.put(signed.url, body, {
-      headers: {
-        ...signed.headers,
-        "content-type": contentType,
-      },
-      maxBodyLength: Infinity,
-      maxContentLength: Infinity,
-      validateStatus: () => true,
-    })
+  const stylesToTry = [false, true]
 
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(`Erro ao enviar para MinIO: ${response.status}`)
+  let lastError = "Erro desconhecido"
+
+  for (const region of regionsToTry) {
+    for (const virtualHostStyle of stylesToTry) {
+      const signed = signRequest("PUT", objectKey, payloadHash, {
+        contentType,
+        region,
+        virtualHostStyle,
+      })
+
+      try {
+        const response = await axios.put(signed.url, body, {
+          headers: {
+            ...signed.headers,
+            "content-type": contentType,
+          },
+          maxBodyLength: Infinity,
+          maxContentLength: Infinity,
+          validateStatus: () => true,
+        })
+
+        if (response.status >= 200 && response.status < 300) {
+          return `${STORAGE_ENDPOINT}/${STORAGE_BUCKET_NAME}/${objectKey}`
+        }
+
+        const bodyMessage =
+          typeof response.data === "string"
+            ? response.data
+            : JSON.stringify(response.data || {})
+
+        lastError = `status ${response.status} (region=${region}, style=${virtualHostStyle ? "virtual" : "path"}) - ${bodyMessage}`
+      } catch (error: any) {
+        lastError = error?.message || "falha de conexão"
+      }
     }
-  } catch (error: any) {
-    throw new Error(`Erro ao enviar para MinIO: ${error?.message || "desconhecido"}`)
   }
 
-  return `${STORAGE_ENDPOINT}/${STORAGE_BUCKET_NAME}/${objectKey}`
+  throw new Error(`Erro ao enviar para MinIO: ${lastError}`)
 }
 
 const deleteFromMinio = async (imageUrl: string) => {
@@ -148,7 +192,9 @@ const deleteFromMinio = async (imageUrl: string) => {
 
   const objectKey = imageUrl.replace(`${STORAGE_ENDPOINT}/${STORAGE_BUCKET_NAME}/`, "")
   const payloadHash = sha256Hex("")
-  const signed = signRequest("DELETE", objectKey, payloadHash)
+  const signed = signRequest("DELETE", objectKey, payloadHash, {
+    region: STORAGE_REGION,
+  })
 
   await axios.delete(signed.url, {
     headers: signed.headers,
