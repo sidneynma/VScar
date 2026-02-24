@@ -48,6 +48,9 @@ router.post(
         brand,
         model,
         year,
+        plate,
+        renavam,
+        chassis,
         color,
         fuel_type,
         transmission,
@@ -71,7 +74,17 @@ router.post(
         tipoVeiculo,
       } = req.body;
 
-      if (!title || !brand || !model || !year || !price) {
+      const hasMissingRequiredFields =
+        !title ||
+        !brand ||
+        !model ||
+        year === undefined ||
+        year === null ||
+        price === undefined ||
+        price === null ||
+        !plate;
+
+      if (hasMissingRequiredFields) {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
@@ -91,6 +104,7 @@ router.post(
         `INSERT INTO vehicles (
           id, tenant_id, revenda_id,
           title, brand, model, year,
+          plate, renavam, chassis,
           color, fuel_type, transmission,
           mileage, price, purchase_price,
           description, interior_color,
@@ -101,7 +115,7 @@ router.post(
         VALUES (
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
           $11,$12,$13,$14,$15,$16,$17,$18,
-          $19,$20,$21
+          $19,$20,$21,$22,$23,$24
         )
         RETURNING *`,
         [
@@ -112,6 +126,9 @@ router.post(
           brand,
           model,
           year,
+          plate,
+          renavam || null,
+          chassis || null,
           color,
           fuel_type,
           transmission,
@@ -287,6 +304,9 @@ router.put(
         brand,
         model,
         year,
+        plate,
+        renavam,
+        chassis,
         color,
         fuel_type,
         transmission,
@@ -315,13 +335,16 @@ router.put(
         vehicleTypeMap[vehicle_type] || vehicle_type;
 
       const result = await pool.query(
-        `UPDATE vehicles SET title = $1, brand = $2, model = $3, year = $4, color = $5, fuel_type = $6, transmission = $7, mileage = $8, price = $9, purchase_price = $10, description = $11, status = $12, interior_color = $13, doors = $14, vehicle_type = $15, financial_state = $16, documentation = $17, conservation = $18, features = $19, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $20 AND tenant_id = $21 RETURNING *`,
+        `UPDATE vehicles SET title = $1, brand = $2, model = $3, year = $4, plate = $5, renavam = $6, chassis = $7, color = $8, fuel_type = $9, transmission = $10, mileage = $11, price = $12, purchase_price = $13, description = $14, status = $15, interior_color = $16, doors = $17, vehicle_type = $18, financial_state = $19, documentation = $20, conservation = $21, features = $22, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $23 AND tenant_id = $24 RETURNING *`,
         [
           title,
           brand,
           model,
           year,
+          plate,
+          renavam || null,
+          chassis || null,
           color,
           fuel_type,
           transmission,

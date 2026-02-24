@@ -107,12 +107,16 @@ interface VehicleFormData {
   brand: string;
   model: string;
   year: number;
+  plate: string;
+  renavam: string;
+  chassis: string;
   color: string;
   fuel_type: string;
   transmission: string;
   mileage: number;
   price: number;
   purchase_price: number;
+  fipe_value: number;
   doors: string;
   vehicle_type: string;
   description: string;
@@ -159,12 +163,16 @@ export default function NewVehiclePage() {
     brand: "",
     model: "",
     year: new Date().getFullYear(),
+    plate: "",
+    renavam: "",
+    chassis: "",
     color: "",
     fuel_type: "",
     transmission: "Manual",
     mileage: 0,
     price: 0,
     purchase_price: 0,
+    fipe_value: 0,
     doors: "4",
     vehicle_type: "Carro",
     description: "",
@@ -261,7 +269,7 @@ export default function NewVehiclePage() {
         year: data.AnoModelo,
         fuel_type: data.Combustivel,
         title: `${data.Marca} ${data.Modelo} ${data.AnoModelo}`,
-        price: parseFloat(
+        fipe_value: parseFloat(
           data.Valor.replace("R$ ", "").replace(/\./g, "").replace(",", ".")
         ),
         fipe_code: data.CodigoFipe,
@@ -310,7 +318,9 @@ export default function NewVehiclePage() {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "year" || name === "mileage" ? Number(value) : value,
+      [name]: ["year", "mileage", "price", "purchase_price", "fipe_value"].includes(name)
+        ? Number(value)
+        : value,
     }));
   };
 
@@ -551,6 +561,38 @@ return (
             </div>
 
             <div>
+              <label className="form-label">Placa</label>
+              <input
+                name="plate"
+                value={formData.plate}
+                onChange={handleChange}
+                className="form-input"
+                placeholder="ABC1D23"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="form-label">Renavam</label>
+              <input
+                name="renavam"
+                value={formData.renavam}
+                onChange={handleChange}
+                className="form-input"
+              />
+            </div>
+
+            <div>
+              <label className="form-label">Número do Chassi</label>
+              <input
+                name="chassis"
+                value={formData.chassis}
+                onChange={handleChange}
+                className="form-input"
+              />
+            </div>
+
+            <div>
               <label className="form-label">Quilometragem</label>
               <input
                 type="number"
@@ -634,6 +676,31 @@ return (
         <div className="card mb-6">
           <h2 className="text-lg font-semibold mb-4">Valores</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="form-label">Valor FIPE (R$)</label>
+              <input
+                type="number"
+                name="fipe_value"
+                value={formData.fipe_value}
+                onChange={handleChange}
+                placeholder="0,00"
+                step="0.01"
+                className="form-input"
+                readOnly
+              />
+            </div>
+
+            <div>
+              <label className="form-label">Data da Consulta FIPE</label>
+              <input
+                name="fipe_consult_date"
+                value={formData.fipe_consult_date}
+                onChange={handleChange}
+                className="form-input"
+                readOnly
+              />
+            </div>
+
             <div>
               <label className="form-label">Preço de Venda (R$)</label>
               <input
