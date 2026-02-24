@@ -31,10 +31,10 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- Insert sample vehicles
-INSERT INTO vehicles (id, tenant_id, revenda_id, title, brand, model, year, color, fuel_type, transmission, mileage, price, description, vehicle_type, status)
+INSERT INTO vehicles (id, tenant_id, revenda_id, title, brand, model, year, plate, color, fuel_type, transmission, mileage, price, description, vehicle_type, status)
 VALUES 
-  ('550e8400-e29b-41d4-a716-446655440006', '550e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440005', 'Honda Civic 2022', 'Honda', 'Civic', 2022, 'Preto', 'gasoline', 'automatic', 15000, 125000.00, 'Veículo em perfeito estado, único dono', 'car', 'available'),
-  ('550e8400-e29b-41d4-a716-446655440007', '550e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440005', 'Toyota Corolla 2021', 'Toyota', 'Corolla', 2021, 'Branco', 'gasoline', 'automatic', 25000, 95000.00, 'Corolla automático impecável', 'car', 'available')
+  ('550e8400-e29b-41d4-a716-446655440006', '550e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440005', 'Honda Civic 2022', 'Honda', 'Civic', 2022, 'ABC1D23', 'Preto', 'gasoline', 'automatic', 15000, 125000.00, 'Veículo em perfeito estado, único dono', 'car', 'available'),
+  ('550e8400-e29b-41d4-a716-446655440007', '550e8400-e29b-41d4-a716-446655440003', '550e8400-e29b-41d4-a716-446655440005', 'Toyota Corolla 2021', 'Toyota', 'Corolla', 2021, 'EFG4H56', 'Branco', 'gasoline', 'automatic', 25000, 95000.00, 'Corolla automático impecável', 'car', 'available')
 ON CONFLICT DO NOTHING;
 
 -- Insert portals
