@@ -306,6 +306,27 @@ export default function NewVehiclePage() {
   // HANDLERS
   // ==============================
 
+  const formatCurrencyBRL = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(Number(value || 0));
+  };
+
+  const parseCurrencyInput = (value: string) => {
+    const onlyDigits = value.replace(/\D/g, "");
+    if (!onlyDigits) return 0;
+    return Number(onlyDigits) / 100;
+  };
+
+  const handleCurrencyChange = (field: "price" | "purchase_price") => (e: any) => {
+    const parsedValue = parseCurrencyInput(e.target.value);
+    setFormData((prev) => ({
+      ...prev,
+      [field]: parsedValue,
+    }));
+  };
+
   const handleFipeChange = (e: any) => {
     const { name, value } = e.target;
     setFipeConsult((prev) => ({
@@ -318,7 +339,7 @@ export default function NewVehiclePage() {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: ["year", "mileage", "price", "purchase_price", "fipe_value"].includes(name)
+      [name]: ["year", "mileage", "fipe_value"].includes(name)
         ? Number(value)
         : value,
     }));
@@ -679,12 +700,9 @@ return (
             <div>
               <label className="form-label">Valor FIPE (R$)</label>
               <input
-                type="number"
+                type="text"
                 name="fipe_value"
-                value={formData.fipe_value}
-                onChange={handleChange}
-                placeholder="0,00"
-                step="0.01"
+                value={formatCurrencyBRL(formData.fipe_value)}
                 className="form-input"
                 readOnly
               />
@@ -704,26 +722,26 @@ return (
             <div>
               <label className="form-label">Preço de Venda (R$)</label>
               <input
-                type="number"
+                type="text"
                 name="price"
-                value={formData.price}
-                onChange={handleChange}
-                placeholder="0,00"
-                step="0.01"
+                value={formatCurrencyBRL(formData.price)}
+                onChange={handleCurrencyChange("price")}
+                placeholder="R$ 0,00"
                 className="form-input"
                 required
+                inputMode="numeric"
               />
             </div>
             <div>
               <label className="form-label">Valor de Compra (R$)</label>
               <input
-                type="number"
+                type="text"
                 name="purchase_price"
-                value={formData.purchase_price}
-                onChange={handleChange}
-                placeholder="0,00"
-                step="0.01"
+                value={formatCurrencyBRL(formData.purchase_price)}
+                onChange={handleCurrencyChange("purchase_price")}
+                placeholder="R$ 0,00"
                 className="form-input"
+                inputMode="numeric"
               />
             </div>
           </div>
