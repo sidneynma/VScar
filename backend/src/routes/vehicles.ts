@@ -9,6 +9,24 @@ const router = express.Router()
 const fipeService = new FipeService();
 const status = VEHICLE_STATUS.AVAILABLE;
 
+const getVehiclePersistenceError = (err: any) => {
+  if (err?.code === "23505") {
+    if (err?.constraint === "idx_vehicles_tenant_plate_unique") {
+      return {
+        status: 409,
+        message: "Placa já cadastrada para esta revenda.",
+      };
+    }
+
+    return {
+      status: 409,
+      message: "Já existe um registro com os dados informados.",
+    };
+  }
+
+  return null;
+};
+
 // List vehicles
 router.get("/", authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
@@ -74,7 +92,17 @@ router.post(
         tipoVeiculo,
       } = req.body;
 
-      if (!title || !brand || !model || !year || !price || !plate) {
+      const hasMissingRequiredFields =
+        !title ||
+        !brand ||
+        !model ||
+        year === undefined ||
+        year === null ||
+        price === undefined ||
+        price === null ||
+        !plate;
+
+      if (hasMissingRequiredFields) {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
@@ -250,6 +278,14 @@ router.post(
     } catch (err) {
       await client.query("ROLLBACK");
       console.error(err);
+
+      const persistenceError = getVehiclePersistenceError(err);
+      if (persistenceError) {
+        return res
+          .status(persistenceError.status)
+          .json({ message: persistenceError.message });
+      }
+
       res.status(500).json({ message: "Error creating vehicle" });
     } finally {
       client.release();
@@ -364,6 +400,14 @@ router.put(
       res.json(result.rows[0])
     } catch (err) {
       console.error("Error:", err)
+
+      const persistenceError = getVehiclePersistenceError(err);
+      if (persistenceError) {
+        return res
+          .status(persistenceError.status)
+          .json({ message: persistenceError.message });
+      }
+
       res.status(500).json({ message: "Error updating vehicle" })
     }
   },
