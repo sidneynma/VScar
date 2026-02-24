@@ -25,6 +25,9 @@ interface Vehicle {
   brand: string
   model: string
   year: number
+  plate?: string
+  renavam?: string
+  chassis?: string
   price: number
   purchase_price?: number
   status: string
@@ -218,6 +221,10 @@ export default function VehicleDetailsPage() {
             <DetailRow icon={<Tag className="w-4 h-4" />} label="Marca" value={vehicle.brand || "-"} />
             <DetailRow icon={<Car className="w-4 h-4" />} label="Modelo" value={vehicle.model || "-"} />
             <DetailRow icon={<Calendar className="w-4 h-4" />} label="Ano" value={String(vehicle.year || "-")} />
+            <DetailRow icon={<Tag className="w-4 h-4" />} label="Placa" value={vehicle.plate || "-"} />
+            <DetailRow icon={<FileText className="w-4 h-4" />} label="Renavam" value={vehicle.renavam || "-"} />
+            <DetailRow icon={<Settings2 className="w-4 h-4" />} label="Chassi" value={vehicle.chassis || "-"} />
+            <DetailRow icon={<Tag className="w-4 h-4" />} label="Status" value={statusBadge(vehicle.status)} />
             <DetailRow icon={<Palette className="w-4 h-4" />} label="Cor" value={vehicle.color || "-"} />
             <DetailRow icon={<Palette className="w-4 h-4" />} label="Cor Interna" value={vehicle.interior_color || "-"} />
             <DetailRow icon={<FileText className="w-4 h-4" />} label="Tipo" value={vehicle.vehicle_type || "-"} />
@@ -371,7 +378,7 @@ export default function VehicleDetailsPage() {
   )
 }
 
-function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
     <div
       className="flex items-center justify-between"

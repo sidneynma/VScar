@@ -42,6 +42,18 @@ export default function VehicleImagesPage() {
     }
   }
 
+
+  const fileToBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = typeof reader.result === "string" ? reader.result : ""
+        resolve(result.split(",")[1] || "")
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files) return
@@ -49,17 +61,26 @@ export default function VehicleImagesPage() {
     setUploading(true)
     try {
       const token = localStorage.getItem("token")
-      for (const file of Array.from(files)) {
-        const formData = new FormData()
-        formData.append("image", file)
+      const preparedImages = await Promise.all(
+        Array.from(files).map(async (file, index) => ({
+          filename: file.name,
+          mime_type: file.type,
+          data: await fileToBase64(file),
+          is_primary: images.length === 0 && index === 0,
+        })),
+      )
 
-        await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/vehicles/${params.id}/images`, formData, {
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/vehicles/${params.id}/images`,
+        { images: preparedImages },
+        {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
+            "Content-Type": "application/json",
           },
-        })
-      }
+        },
+      )
+
       fetchImages()
     } catch (err) {
       setError("Erro ao fazer upload de fotos")
