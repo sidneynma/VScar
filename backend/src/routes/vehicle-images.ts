@@ -139,8 +139,8 @@ const uploadToMinio = async (vehicleId: string, tenantId: string, image: Incomin
   const safeExt = ext.replace(/[^a-zA-Z0-9]/g, "") || "jpg"
   const objectKey = `vehicles/${tenantId}/${vehicleId}/${Date.now()}-${uuidv4()}.${safeExt}`
   const body = Buffer.from(image.data, "base64")
-  const payloadHash = sha256Hex(body)
   const contentType = image.mime_type || "image/jpeg"
+  const payloadStrategies = [sha256Hex(body), "UNSIGNED-PAYLOAD"]
 
   const regionsToTry = [STORAGE_REGION, "sa-east-1", "us-east-1"]
     .filter(Boolean)
@@ -152,35 +152,38 @@ const uploadToMinio = async (vehicleId: string, tenantId: string, image: Incomin
 
   for (const region of regionsToTry) {
     for (const virtualHostStyle of stylesToTry) {
-      const signed = signRequest("PUT", objectKey, payloadHash, {
-        contentType,
-        region,
-        virtualHostStyle,
-      })
-
-      try {
-        const response = await axios.put(signed.url, body, {
-          headers: {
-            ...signed.headers,
-            "content-type": contentType,
-          },
-          maxBodyLength: Infinity,
-          maxContentLength: Infinity,
-          validateStatus: () => true,
+      for (const payloadHash of payloadStrategies) {
+        const signed = signRequest("PUT", objectKey, payloadHash, {
+          contentType,
+          region,
+          virtualHostStyle,
         })
 
-        if (response.status >= 200 && response.status < 300) {
-          return `${STORAGE_ENDPOINT}/${STORAGE_BUCKET_NAME}/${objectKey}`
+        try {
+          const response = await axios.put(signed.url, body, {
+            headers: {
+              ...signed.headers,
+              "content-type": contentType,
+              "content-length": String(body.length),
+            },
+            maxBodyLength: Infinity,
+            maxContentLength: Infinity,
+            validateStatus: () => true,
+          })
+
+          if (response.status >= 200 && response.status < 300) {
+            return `${STORAGE_ENDPOINT}/${STORAGE_BUCKET_NAME}/${objectKey}`
+          }
+
+          const bodyMessage =
+            typeof response.data === "string"
+              ? response.data
+              : JSON.stringify(response.data || {})
+
+          lastError = `status ${response.status} (region=${region}, style=${virtualHostStyle ? "virtual" : "path"}, payload=${payloadHash === "UNSIGNED-PAYLOAD" ? "unsigned" : "sha256"}) - ${bodyMessage}`
+        } catch (error: any) {
+          lastError = error?.message || "falha de conexão"
         }
-
-        const bodyMessage =
-          typeof response.data === "string"
-            ? response.data
-            : JSON.stringify(response.data || {})
-
-        lastError = `status ${response.status} (region=${region}, style=${virtualHostStyle ? "virtual" : "path"}) - ${bodyMessage}`
-      } catch (error: any) {
-        lastError = error?.message || "falha de conexão"
       }
     }
   }
