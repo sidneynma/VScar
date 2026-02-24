@@ -13,6 +13,7 @@ const STORAGE_ACCESS_KEY_ID = process.env.STORAGE_ACCESS_KEY_ID || ""
 const STORAGE_SECRET_ACCESS_KEY = process.env.STORAGE_SECRET_ACCESS_KEY || ""
 const STORAGE_REGION = process.env.STORAGE_REGION || "auto"
 const STORAGE_ENDPOINT = (process.env.STORAGE_ENDPOINT || "").replace(/\/$/, "")
+const STORAGE_FORCE_PATH_STYLE = (process.env.STORAGE_FORCE_PATH_STYLE || "true") === "true"
 
 type IncomingImage = {
   url?: string
@@ -145,7 +146,7 @@ const uploadToMinio = async (vehicleId: string, tenantId: string, image: Incomin
     .filter(Boolean)
     .filter((value, index, array) => array.indexOf(value) === index)
 
-  const stylesToTry = [false, true]
+  const stylesToTry = STORAGE_FORCE_PATH_STYLE ? [false] : [false, true]
 
   let lastError = "Erro desconhecido"
 

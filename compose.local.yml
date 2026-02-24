@@ -23,6 +23,7 @@ services:
       STORAGE_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY}
       STORAGE_REGION: auto
       STORAGE_ENDPOINT: https://apiminio1.chatolhe.com.br
+      STORAGE_FORCE_PATH_STYLE: "true"
     ports:
       - "3001:3001"
     networks:
