@@ -66,7 +66,7 @@ CREATE TABLE vehicles (
     brand VARCHAR(100) NOT NULL,
     model VARCHAR(100) NOT NULL,
     year INTEGER NOT NULL,
-    plate VARCHAR(10) NOT NULL UNIQUE,
+    plate VARCHAR(10) NOT NULL,
     renavam VARCHAR(20),
     chassis VARCHAR(30),
     color VARCHAR(50),
@@ -80,7 +80,8 @@ CREATE TABLE vehicles (
     vehicle_type VARCHAR(50) CHECK (vehicle_type IN ('car', 'truck', 'motorcycle', 'van', 'suv')),
     status VARCHAR(20) DEFAULT 'available' CHECK (status IN ('available', 'sold', 'reserved', 'maintenance')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, plate)
 );
 
 -- Create vehicle images table
