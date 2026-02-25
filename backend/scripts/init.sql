@@ -104,7 +104,7 @@ CREATE TABLE announcements (
     description TEXT,
     portal_id UUID,
     portal_listing_id VARCHAR(255),
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'archived')),
+    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'inactive', 'archived', 'sold', 'preparing')),
     published_at TIMESTAMP,
     expires_at TIMESTAMP,
     featured BOOLEAN DEFAULT FALSE,
