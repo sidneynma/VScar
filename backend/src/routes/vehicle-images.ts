@@ -123,6 +123,59 @@ const signRequest = (
   }
 }
 
+
+const buildPresignedPutUrl = (objectKey: string, region: string, expiresInSeconds = 900) => {
+  const now = new Date()
+  const amzDate = formatAmzDate(now)
+  const dateStamp = amzDate.slice(0, 8)
+  const endpointUrl = new URL(STORAGE_ENDPOINT)
+  const host = endpointUrl.host
+
+  const objectPath = objectKey
+    .split("/")
+    .map((chunk) => encodeURIComponent(chunk))
+    .join("/")
+
+  const canonicalUri = `/${STORAGE_BUCKET_NAME}/${objectPath}`
+  const credentialScope = `${dateStamp}/${region}/s3/aws4_request`
+
+  const queryParams = [
+    ["X-Amz-Algorithm", "AWS4-HMAC-SHA256"],
+    ["X-Amz-Credential", `${STORAGE_ACCESS_KEY_ID}/${credentialScope}`],
+    ["X-Amz-Date", amzDate],
+    ["X-Amz-Expires", String(expiresInSeconds)],
+    ["X-Amz-SignedHeaders", "host"],
+  ] as const
+
+  const canonicalQueryString = queryParams
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+    .join("&")
+
+  const canonicalHeaders = `host:${host}\n`
+  const signedHeaders = "host"
+
+  const canonicalRequest = [
+    "PUT",
+    canonicalUri,
+    canonicalQueryString,
+    canonicalHeaders,
+    signedHeaders,
+    "UNSIGNED-PAYLOAD",
+  ].join("\n")
+
+  const stringToSign = [
+    "AWS4-HMAC-SHA256",
+    amzDate,
+    credentialScope,
+    sha256Hex(canonicalRequest),
+  ].join("\n")
+
+  const signingKey = getSigningKey(STORAGE_SECRET_ACCESS_KEY, dateStamp, region, "s3")
+  const signature = crypto.createHmac("sha256", signingKey).update(stringToSign).digest("hex")
+
+  return `${STORAGE_ENDPOINT}${canonicalUri}?${canonicalQueryString}&X-Amz-Signature=${signature}`
+}
+
 const uploadToMinio = async (vehicleId: string, tenantId: string, image: IncomingImage) => {
   if (
     !STORAGE_ENDPOINT ||
@@ -140,51 +193,39 @@ const uploadToMinio = async (vehicleId: string, tenantId: string, image: Incomin
   const objectKey = `vehicles/${tenantId}/${vehicleId}/${Date.now()}-${uuidv4()}.${safeExt}`
   const body = Buffer.from(image.data, "base64")
   const contentType = image.mime_type || "image/jpeg"
-  const payloadStrategies = [sha256Hex(body), "UNSIGNED-PAYLOAD"]
 
   const regionsToTry = [STORAGE_REGION, "sa-east-1", "us-east-1"]
     .filter(Boolean)
     .filter((value, index, array) => array.indexOf(value) === index)
 
-  const stylesToTry = STORAGE_FORCE_PATH_STYLE ? [false] : [false, true]
-
   let lastError = "Erro desconhecido"
 
   for (const region of regionsToTry) {
-    for (const virtualHostStyle of stylesToTry) {
-      for (const payloadHash of payloadStrategies) {
-        const signed = signRequest("PUT", objectKey, payloadHash, {
-          contentType,
-          region,
-          virtualHostStyle,
-        })
+    const presignedUrl = buildPresignedPutUrl(objectKey, region)
 
-        try {
-          const response = await axios.put(signed.url, body, {
-            headers: {
-              ...signed.headers,
-              "content-type": contentType,
-              "content-length": String(body.length),
-            },
-            maxBodyLength: Infinity,
-            maxContentLength: Infinity,
-            validateStatus: () => true,
-          })
+    try {
+      const response = await axios.put(presignedUrl, body, {
+        headers: {
+          "content-type": contentType,
+          "content-length": String(body.length),
+        },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        validateStatus: () => true,
+      })
 
-          if (response.status >= 200 && response.status < 300) {
-            return `${STORAGE_ENDPOINT}/${STORAGE_BUCKET_NAME}/${objectKey}`
-          }
-
-          const bodyMessage =
-            typeof response.data === "string"
-              ? response.data
-              : JSON.stringify(response.data || {})
-
-          lastError = `status ${response.status} (region=${region}, style=${virtualHostStyle ? "virtual" : "path"}, payload=${payloadHash === "UNSIGNED-PAYLOAD" ? "unsigned" : "sha256"}) - ${bodyMessage}`
-        } catch (error: any) {
-          lastError = error?.message || "falha de conexão"
-        }
+      if (response.status >= 200 && response.status < 300) {
+        return `${STORAGE_ENDPOINT}/${STORAGE_BUCKET_NAME}/${objectKey}`
       }
+
+      const bodyMessage =
+        typeof response.data === "string"
+          ? response.data
+          : JSON.stringify(response.data || {})
+
+      lastError = `status ${response.status} (region=${region}, mode=presigned-url) - ${bodyMessage}`
+    } catch (error: any) {
+      lastError = error?.message || "falha de conexão"
     }
   }
 
