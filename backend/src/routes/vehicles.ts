@@ -9,6 +9,24 @@ const router = express.Router()
 const fipeService = new FipeService();
 const status = VEHICLE_STATUS.AVAILABLE;
 
+const getVehiclePersistenceError = (err: any) => {
+  if (err?.code === "23505") {
+    if (err?.constraint === "idx_vehicles_tenant_plate_unique") {
+      return {
+        status: 409,
+        message: "Placa já cadastrada para esta revenda.",
+      };
+    }
+
+    return {
+      status: 409,
+      message: "Já existe um registro com os dados informados.",
+    };
+  }
+
+  return null;
+};
+
 // List vehicles
 router.get("/", authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
@@ -48,6 +66,9 @@ router.post(
         brand,
         model,
         year,
+        plate,
+        renavam,
+        chassis,
         color,
         fuel_type,
         transmission,
@@ -71,7 +92,17 @@ router.post(
         tipoVeiculo,
       } = req.body;
 
-      if (!title || !brand || !model || !year || !price) {
+      const hasMissingRequiredFields =
+        !title ||
+        !brand ||
+        !model ||
+        year === undefined ||
+        year === null ||
+        price === undefined ||
+        price === null ||
+        !plate;
+
+      if (hasMissingRequiredFields) {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
@@ -91,6 +122,7 @@ router.post(
         `INSERT INTO vehicles (
           id, tenant_id, revenda_id,
           title, brand, model, year,
+          plate, renavam, chassis,
           color, fuel_type, transmission,
           mileage, price, purchase_price,
           description, interior_color,
@@ -101,7 +133,7 @@ router.post(
         VALUES (
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
           $11,$12,$13,$14,$15,$16,$17,$18,
-          $19,$20,$21
+          $19,$20,$21,$22,$23,$24
         )
         RETURNING *`,
         [
@@ -112,6 +144,9 @@ router.post(
           brand,
           model,
           year,
+          plate,
+          renavam || null,
+          chassis || null,
           color,
           fuel_type,
           transmission,
@@ -241,6 +276,14 @@ router.post(
     } catch (err) {
       await client.query("ROLLBACK");
       console.error(err);
+
+      const persistenceError = getVehiclePersistenceError(err);
+      if (persistenceError) {
+        return res
+          .status(persistenceError.status)
+          .json({ message: persistenceError.message });
+      }
+
       res.status(500).json({ message: "Error creating vehicle" });
     } finally {
       client.release();
@@ -275,6 +318,34 @@ router.get("/:id", authMiddleware, async (req: AuthRequest, res: Response) => {
   }
 })
 
+// FIPE history (most recent first)
+router.get("/:id/fipe-history", authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const vehicleResult = await pool.query(
+      "SELECT id FROM vehicles WHERE id = $1 AND tenant_id = $2",
+      [req.params.id, req.user?.tenant_id],
+    );
+
+    if (vehicleResult.rows.length === 0) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+
+    const historyResult = await pool.query(
+      `SELECT h.id, h.valor, h.codigo_fipe, h.marca, h.modelo, h.ano_modelo, h.combustivel, h.data_consulta, r.mes_referencia
+       FROM fipe_consult_history h
+       LEFT JOIN fipe_reference r ON r.id = h.fipe_reference_id
+       WHERE h.vehicle_id = $1
+       ORDER BY h.data_consulta DESC NULLS LAST, h.created_at DESC`,
+      [req.params.id],
+    );
+
+    res.json(historyResult.rows);
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Error fetching FIPE history" });
+  }
+});
+
 // Update vehicle
 router.put(
   "/:id",
@@ -287,6 +358,9 @@ router.put(
         brand,
         model,
         year,
+        plate,
+        renavam,
+        chassis,
         color,
         fuel_type,
         transmission,
@@ -315,13 +389,16 @@ router.put(
         vehicleTypeMap[vehicle_type] || vehicle_type;
 
       const result = await pool.query(
-        `UPDATE vehicles SET title = $1, brand = $2, model = $3, year = $4, color = $5, fuel_type = $6, transmission = $7, mileage = $8, price = $9, purchase_price = $10, description = $11, status = $12, interior_color = $13, doors = $14, vehicle_type = $15, financial_state = $16, documentation = $17, conservation = $18, features = $19, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $20 AND tenant_id = $21 RETURNING *`,
+        `UPDATE vehicles SET title = $1, brand = $2, model = $3, year = $4, plate = $5, renavam = $6, chassis = $7, color = $8, fuel_type = $9, transmission = $10, mileage = $11, price = $12, purchase_price = $13, description = $14, status = $15, interior_color = $16, doors = $17, vehicle_type = $18, financial_state = $19, documentation = $20, conservation = $21, features = $22, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $23 AND tenant_id = $24 RETURNING *`,
         [
           title,
           brand,
           model,
           year,
+          plate,
+          renavam || null,
+          chassis || null,
           color,
           fuel_type,
           transmission,
@@ -349,6 +426,14 @@ router.put(
       res.json(result.rows[0])
     } catch (err) {
       console.error("Error:", err)
+
+      const persistenceError = getVehiclePersistenceError(err);
+      if (persistenceError) {
+        return res
+          .status(persistenceError.status)
+          .json({ message: persistenceError.message });
+      }
+
       res.status(500).json({ message: "Error updating vehicle" })
     }
   },
