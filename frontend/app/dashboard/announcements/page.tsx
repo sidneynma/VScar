@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Megaphone, Plus, Eye, MessageSquare, Pencil } from "lucide-react"
+import { Megaphone, Plus, Eye, MessageSquare, ChevronDown, ChevronUp } from "lucide-react"
 
 interface Announcement {
   id: string
@@ -14,6 +14,7 @@ interface Announcement {
   contacts_count: number
   vehicle_brand?: string
   vehicle_model?: string
+  vehicle_plate?: string
   vehicle_year?: number
   vehicle_price?: number
   vehicle_fuel_type?: string
@@ -93,6 +94,7 @@ const buildPortalText = (a: Announcement) => {
     "",
     "🔹 Informações Básicas",
     `• Veículo: ${a.vehicle_brand || ""} ${a.vehicle_model || ""} ${a.vehicle_year || ""}`,
+    `• Placa: ${a.vehicle_plate || "-"}`,
     `• Tipo: ${a.vehicle_vehicle_type || "-"}`,
     `• Cor: ${a.vehicle_color || "-"} | Interior: ${a.vehicle_interior_color || "-"}`,
     "",
@@ -124,6 +126,9 @@ export default function AnnouncementsPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
 
   useEffect(() => {
     const token = localStorage.getItem("token")
@@ -148,6 +153,15 @@ export default function AnnouncementsPage() {
     }
   }
 
+  const filteredAnnouncements = useMemo(() => {
+    return announcements.filter((a) => {
+      const matchesStatus = statusFilter === "all" ? true : a.status === statusFilter
+      const normalized = `${a.title} ${a.vehicle_brand || ""} ${a.vehicle_model || ""} ${a.vehicle_plate || ""}`.toLowerCase()
+      const matchesSearch = normalized.includes(search.toLowerCase())
+      return matchesStatus && matchesSearch
+    })
+  }, [announcements, search, statusFilter])
+
   const updateStatus = async (id: string, status: string) => {
     setUpdatingId(id)
     try {
@@ -171,8 +185,6 @@ export default function AnnouncementsPage() {
     }
   }
 
-  const summary = useMemo(() => `${announcements.length} anúncios publicados`, [announcements.length])
-
   if (loading) {
     return (
       <div className="flex items-center justify-center" style={{ minHeight: "50vh" }}>
@@ -187,7 +199,7 @@ export default function AnnouncementsPage() {
         <div>
           <h1 className="text-2xl font-bold">Anúncios</h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-secondary)" }}>
-            {summary}
+            {filteredAnnouncements.length} anúncios na lista
           </p>
         </div>
         <Link href="/dashboard/announcements/new" className="btn-primary">
@@ -196,22 +208,50 @@ export default function AnnouncementsPage() {
         </Link>
       </div>
 
-      {announcements.length === 0 ? (
+      <div className="card mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input
+            className="form-input"
+            placeholder="Buscar por título, veículo ou placa"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <select className="form-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="all">Todos os status</option>
+            {Object.entries(statusMap).map(([key, value]) => (
+              <option key={key} value={key}>{value.label}</option>
+            ))}
+          </select>
+          <button className="btn-secondary" onClick={() => { setSearch(""); setStatusFilter("all") }}>
+            Limpar filtros
+          </button>
+        </div>
+      </div>
+
+      {filteredAnnouncements.length === 0 ? (
         <div className="card">
           <div className="empty-state">
             <Megaphone className="w-10 h-10 mx-auto" style={{ color: "var(--text-muted)" }} />
-            <p>Nenhum anúncio publicado ainda</p>
+            <p>Nenhum anúncio encontrado</p>
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
-          {announcements.map((a) => {
+        <div className="flex flex-col gap-3">
+          {filteredAnnouncements.map((a) => {
             const badge = statusMap[a.status] || { label: a.status, className: "badge badge-gray" }
+            const expanded = expandedId === a.id
+
             return (
               <div key={a.id} className="card">
-                <div className="flex justify-between items-start gap-3 mb-3">
+                <button
+                  className="w-full flex justify-between items-start text-left"
+                  onClick={() => setExpandedId(expanded ? null : a.id)}
+                >
                   <div>
-                    <h3 className="font-semibold">{a.title}</h3>
+                    <h3 className="font-semibold">{a.vehicle_brand} {a.vehicle_model} ({a.vehicle_year})</h3>
+                    <p className="text-xs mt-1" style={{ color: "var(--text-secondary)" }}>
+                      Placa: <span className="font-semibold">{a.vehicle_plate || "-"}</span> • {a.title}
+                    </p>
                     <div className="flex gap-4 mt-2">
                       <span className="flex items-center gap-1 text-xs" style={{ color: "var(--text-secondary)" }}>
                         <Eye className="w-3.5 h-3.5" /> {a.views_count} views
@@ -221,28 +261,27 @@ export default function AnnouncementsPage() {
                       </span>
                     </div>
                   </div>
-                  <span className={badge.className}>{badge.label}</span>
-                </div>
+                  <div className="flex items-center gap-2">
+                    <span className={badge.className}>{badge.label}</span>
+                    {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </div>
+                </button>
 
-                <div className="mb-4 p-3 rounded" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid var(--border-color)" }}>
-                  <h4 className="text-sm font-semibold mb-2">Prévia para OLX / Webmotors / outros</h4>
-                  <pre style={{ whiteSpace: "pre-wrap", color: "var(--text-secondary)", fontSize: "0.85rem", lineHeight: 1.5 }}>{buildPortalText(a)}</pre>
-                </div>
+                {expanded && (
+                  <>
+                    <div className="mt-4 mb-4 p-3 rounded" style={{ backgroundColor: "rgba(255,255,255,0.03)", border: "1px solid var(--border-color)" }}>
+                      <h4 className="text-sm font-semibold mb-2">Prévia para OLX / Webmotors / outros</h4>
+                      <pre style={{ whiteSpace: "pre-wrap", color: "var(--text-secondary)", fontSize: "0.85rem", lineHeight: 1.5 }}>{buildPortalText(a)}</pre>
+                    </div>
 
-                <div className="flex flex-wrap gap-2">
-                  <Link href={`/dashboard/announcements/${a.id}`} className="btn-secondary">
-                    <Pencil className="w-4 h-4" /> Editar
-                  </Link>
-                  <button className="btn-secondary" onClick={() => updateStatus(a.id, "inactive")} disabled={updatingId === a.id}>
-                    Desativar
-                  </button>
-                  <button className="btn-secondary" onClick={() => updateStatus(a.id, "sold")} disabled={updatingId === a.id}>
-                    Vendido
-                  </button>
-                  <button className="btn-secondary" onClick={() => updateStatus(a.id, "preparing")} disabled={updatingId === a.id}>
-                    Aguardando preparação
-                  </button>
-                </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Link href={`/dashboard/announcements/${a.id}`} className="btn-secondary">Editar</Link>
+                      <button className="btn-secondary" onClick={() => updateStatus(a.id, "inactive")} disabled={updatingId === a.id}>Desativar</button>
+                      <button className="btn-secondary" onClick={() => updateStatus(a.id, "sold")} disabled={updatingId === a.id}>Vendido</button>
+                      <button className="btn-secondary" onClick={() => updateStatus(a.id, "preparing")} disabled={updatingId === a.id}>Aguardando preparação</button>
+                    </div>
+                  </>
+                )}
               </div>
             )
           })}
