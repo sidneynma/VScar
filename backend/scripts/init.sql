@@ -66,6 +66,9 @@ CREATE TABLE vehicles (
     brand VARCHAR(100) NOT NULL,
     model VARCHAR(100) NOT NULL,
     year INTEGER NOT NULL,
+    plate VARCHAR(10) NOT NULL,
+    renavam VARCHAR(20),
+    chassis VARCHAR(30),
     color VARCHAR(50),
     fuel_type VARCHAR(50) CHECK (fuel_type IN ('gasoline', 'diesel', 'ethanol', 'hybrid', 'electric')),
     transmission VARCHAR(50) CHECK (transmission IN ('manual', 'automatic')),
@@ -77,7 +80,8 @@ CREATE TABLE vehicles (
     vehicle_type VARCHAR(50) CHECK (vehicle_type IN ('car', 'truck', 'motorcycle', 'van', 'suv')),
     status VARCHAR(20) DEFAULT 'available' CHECK (status IN ('available', 'sold', 'reserved', 'maintenance')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, plate)
 );
 
 -- Create vehicle images table
@@ -87,6 +91,35 @@ CREATE TABLE vehicle_images (
     image_url TEXT NOT NULL,
     alt_text VARCHAR(255),
     is_primary BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- Create vehicle parties table
+CREATE TABLE vehicle_parties (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    document VARCHAR(30),
+    profile_type VARCHAR(20) NOT NULL DEFAULT 'both' CHECK (profile_type IN ('owner', 'buyer', 'both')),
+    status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create vehicle party history table
+CREATE TABLE vehicle_party_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    vehicle_id UUID NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+    party_id UUID NOT NULL REFERENCES vehicle_parties(id) ON DELETE CASCADE,
+    relation_type VARCHAR(20) NOT NULL CHECK (relation_type IN ('owner', 'buyer')),
+    event_date DATE DEFAULT CURRENT_DATE,
+    sale_price DECIMAL(12,2),
+    notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -100,7 +133,7 @@ CREATE TABLE announcements (
     description TEXT,
     portal_id UUID,
     portal_listing_id VARCHAR(255),
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'archived')),
+    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'inactive', 'archived', 'sold', 'preparing')),
     published_at TIMESTAMP,
     expires_at TIMESTAMP,
     featured BOOLEAN DEFAULT FALSE,
@@ -173,6 +206,10 @@ CREATE INDEX idx_revendas_tenant_id ON revendas(tenant_id);
 CREATE INDEX idx_vehicles_tenant_id ON vehicles(tenant_id);
 CREATE INDEX idx_vehicles_revenda_id ON vehicles(revenda_id);
 CREATE INDEX idx_vehicles_status ON vehicles(status);
+CREATE INDEX idx_vehicle_parties_tenant_id ON vehicle_parties(tenant_id);
+CREATE INDEX idx_vehicle_party_history_tenant_id ON vehicle_party_history(tenant_id);
+CREATE INDEX idx_vehicle_party_history_party_id ON vehicle_party_history(party_id);
+CREATE INDEX idx_vehicle_party_history_vehicle_id ON vehicle_party_history(vehicle_id);
 CREATE INDEX idx_announcements_tenant_id ON announcements(tenant_id);
 CREATE INDEX idx_announcements_vehicle_id ON announcements(vehicle_id);
 CREATE INDEX idx_announcements_status ON announcements(status);

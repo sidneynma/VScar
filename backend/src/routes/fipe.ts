@@ -108,4 +108,34 @@ router.get("/valor/:tipo/:marca/:modelo/:ano", async (req, res) => {
   }
 });
 
+router.get("/codigo/:codigoFipe", async (req, res) => {
+  try {
+    const { codigoFipe } = req.params;
+    const { modelo } = req.query;
+
+    const response = await fetch(`https://brasilapi.com.br/api/fipe/preco/v1/${codigoFipe}`);
+
+    if (!response.ok) {
+      return res.status(response.status).json({ message: "Erro ao consultar FIPE por código" });
+    }
+
+    const data = await response.json();
+
+    if (!Array.isArray(data)) {
+      return res.json([]);
+    }
+
+    const filtered = modelo
+      ? data.filter((item: any) =>
+          String(item?.modelo || "").toLowerCase().includes(String(modelo).toLowerCase())
+        )
+      : data;
+
+    res.json(filtered);
+  } catch (error) {
+    console.error("Erro fipe/codigo:", error);
+    res.status(500).json({ message: "Erro ao consultar código FIPE" });
+  }
+});
+
 export default router;

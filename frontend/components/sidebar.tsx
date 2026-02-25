@@ -19,6 +19,7 @@ const navItems = [
   { href: "/dashboard/vehicles", label: "Veiculos", icon: Car },
   { href: "/dashboard/announcements", label: "Anuncios", icon: Megaphone },
   { href: "/dashboard/sellers", label: "Vendedores", icon: UserCheck },
+  { href: "/dashboard/vehicle-parties", label: "Proprietários/Compradores", icon: Users },
   { href: "/dashboard/revendas", label: "Revendas", icon: Store },
   { href: "/dashboard/portals", label: "Portais", icon: Globe },
   { href: "/dashboard/users", label: "Usuarios", icon: Users },

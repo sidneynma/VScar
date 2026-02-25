@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import axios from "axios"
 import Link from "next/link"
@@ -12,11 +12,13 @@ interface Vehicle {
   title: string
   brand: string
   model: string
+  plate?: string
 }
 
 export default function NewAnnouncementPage() {
   const router = useRouter()
   const [vehicles, setVehicles] = useState<Vehicle[]>([])
+  const [vehicleSearch, setVehicleSearch] = useState("")
   const [formData, setFormData] = useState({
     vehicle_id: "",
     title: "",
@@ -45,6 +47,13 @@ export default function NewAnnouncementPage() {
       setLoadingVehicles(false)
     }
   }
+
+  const filteredVehicles = useMemo(() => {
+    const term = vehicleSearch.toLowerCase()
+    return vehicles.filter((v) => `${v.brand} ${v.model} ${v.title} ${v.plate || ""}`.toLowerCase().includes(term))
+  }, [vehicles, vehicleSearch])
+
+  const selectedVehicle = useMemo(() => vehicles.find((v) => v.id === formData.vehicle_id), [vehicles, formData.vehicle_id])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
@@ -78,110 +87,88 @@ export default function NewAnnouncementPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
-      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-8">
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-3xl font-bold">Novo Anúncio</h1>
-          <Link href="/dashboard/announcements" className="text-blue-600 hover:underline">
-            Voltar
-          </Link>
-        </div>
+    <div className="page-container">
+      <div className="page-header flex items-center justify-between">
+        <h1>Novo Anúncio</h1>
+        <Link href="/dashboard/announcements" className="btn-secondary">Voltar</Link>
+      </div>
 
-        {error && <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+      <div className="max-w-3xl mx-auto">
+        {error && <div className="card mb-4 border border-red-600 text-red-400">{error}</div>}
 
         {vehicles.length === 0 ? (
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-            Você precisa criar veículos antes de fazer anúncios.{" "}
-            <Link href="/dashboard/vehicles/new" className="font-semibold underline">
-              Criar veículo
-            </Link>
+          <div className="card mb-4 border border-yellow-600 text-yellow-400">
+            Você precisa criar veículos antes de fazer anúncios. <Link href="/dashboard/vehicles/new" className="underline">Criar veículo</Link>
           </div>
         ) : null}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="card space-y-4">
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">Veículo</label>
+            <label className="form-label">Buscar Veículo (modelo ou placa)</label>
+            <input
+              className="form-input"
+              placeholder="Ex: Corolla ou ABC1D23"
+              value={vehicleSearch}
+              onChange={(e) => setVehicleSearch(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="form-label">Veículo</label>
             <select
               name="vehicle_id"
               value={formData.vehicle_id}
               onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="form-input"
               required
             >
               <option value="">Selecione um veículo</option>
-              {vehicles.map((vehicle) => (
+              {filteredVehicles.map((vehicle) => (
                 <option key={vehicle.id} value={vehicle.id}>
-                  {vehicle.brand} {vehicle.model} - {vehicle.title}
+                  {vehicle.brand} {vehicle.model} • Placa: {vehicle.plate || "-"}
                 </option>
               ))}
             </select>
+            {selectedVehicle && (
+              <p className="text-xs mt-2" style={{ color: "var(--text-secondary)" }}>
+                Veículo selecionado: <b>{selectedVehicle.brand} {selectedVehicle.model}</b> • Placa <b>{selectedVehicle.plate || "-"}</b>
+              </p>
+            )}
           </div>
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">Título do Anúncio</label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Ex: Honda Civic 2020 impecável"
-              required
-            />
+            <label className="form-label">Título do Anúncio</label>
+            <input type="text" name="title" value={formData.title} onChange={handleChange} className="form-input" required />
           </div>
 
           <div>
-            <label className="block text-gray-700 font-semibold mb-2">Descrição</label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              rows={6}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Descreva o veículo em detalhes para atrair compradores..."
-              required
-            />
+            <label className="form-label">Descrição</label>
+            <textarea name="description" value={formData.description} onChange={handleChange} rows={7} className="form-input" required />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-gray-700 font-semibold mb-2">Preço (R$)</label>
-              <input
-                type="number"
-                name="price"
-                value={formData.price}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
+              <label className="form-label">Preço (R$)</label>
+              <input type="number" name="price" value={formData.price} onChange={handleChange} className="form-input" required />
             </div>
 
             <div>
-              <label className="block text-gray-700 font-semibold mb-2">Status</label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
+              <label className="form-label">Status</label>
+              <select name="status" value={formData.status} onChange={handleChange} className="form-input">
                 <option value="draft">Rascunho</option>
                 <option value="active">Ativo</option>
-                <option value="paused">Pausado</option>
+                <option value="inactive">Desativado</option>
+                <option value="sold">Vendido</option>
+                <option value="preparing">Aguardando preparação</option>
               </select>
             </div>
           </div>
 
-          <div className="flex gap-4 pt-4">
-            <button
-              type="submit"
-              disabled={loading || vehicles.length === 0}
-              className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+          <div className="flex gap-3 justify-end pt-2">
+            <Link href="/dashboard/announcements" className="btn-secondary">Cancelar</Link>
+            <button type="submit" disabled={loading || vehicles.length === 0} className="btn-primary">
               {loading ? "Criando..." : "Criar Anúncio"}
             </button>
-            <Link href="/dashboard/announcements" className="flex-1 btn-secondary text-center">
-              Cancelar
-            </Link>
           </div>
         </form>
       </div>
