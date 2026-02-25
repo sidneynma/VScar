@@ -25,8 +25,13 @@ interface Vehicle {
   brand: string
   model: string
   year: number
+  plate?: string
+  renavam?: string
+  chassis?: string
   price: number
   purchase_price?: number
+  current_fipe_value?: number
+  fipe_code?: string
   status: string
   mileage: number
   color: string
@@ -44,12 +49,38 @@ interface Vehicle {
   features?: string[]
 }
 
+interface FipeCurrentResult {
+  Valor: string
+  Marca: string
+  Modelo: string
+  CodigoFipe: string
+  MesReferencia: string
+  DataConsulta: string
+  modeloCadastrado?: string
+}
+
+interface FipeHistoryItem {
+  id: number
+  valor?: number
+  codigo_fipe: string
+  marca: string
+  modelo: string
+  ano_modelo: number
+  combustivel: string
+  data_consulta: string
+  mes_referencia: string
+  codigo_tabela?: number
+  created_at?: string
+}
+
 export default function VehicleDetailsPage() {
   const router = useRouter()
   const params = useParams()
   const [vehicle, setVehicle] = useState<Vehicle | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [fipeCurrent, setFipeCurrent] = useState<FipeCurrentResult | null>(null)
+  const [fipeHistory, setFipeHistory] = useState<FipeHistoryItem[]>([])
 
   useEffect(() => {
     const token = localStorage.getItem("token")
@@ -67,7 +98,31 @@ export default function VehicleDetailsPage() {
         headers: { Authorization: `Bearer ${token}` },
       })
       if (res.ok) {
-        setVehicle(await res.json())
+        const vehicleData = await res.json()
+        setVehicle(vehicleData)
+
+        const token = localStorage.getItem("token")
+        const historyRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/vehicles/${params.id}/fipe-history`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+
+        if (historyRes.ok) {
+          setFipeHistory(await historyRes.json())
+        }
+
+        if (vehicleData?.fipe_code) {
+          const currentRes = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/vehicles/${params.id}/fipe-current`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            },
+          )
+
+          if (currentRes.ok) {
+            const currentData = await currentRes.json()
+            setFipeCurrent(currentData)
+          }
+        }
       } else {
         setError("Veiculo nao encontrado")
       }
@@ -95,7 +150,7 @@ export default function VehicleDetailsPage() {
     }
   }
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price?: number) => {
     if (!price) return "Sob consulta"
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(price))
   }
@@ -131,6 +186,19 @@ export default function VehicleDetailsPage() {
     }
     return map[t] || t || "-"
   }
+
+  const orderedHistory = [...fipeHistory].sort((a, b) => {
+    const tableA = Number(a.codigo_tabela || 0)
+    const tableB = Number(b.codigo_tabela || 0)
+
+    if (tableA !== tableB) {
+      return tableB - tableA
+    }
+
+    const dateA = new Date(a.data_consulta || a.created_at || 0).getTime()
+    const dateB = new Date(b.data_consulta || b.created_at || 0).getTime()
+    return dateB - dateA
+  })
 
   if (loading) {
     return (
@@ -218,6 +286,10 @@ export default function VehicleDetailsPage() {
             <DetailRow icon={<Tag className="w-4 h-4" />} label="Marca" value={vehicle.brand || "-"} />
             <DetailRow icon={<Car className="w-4 h-4" />} label="Modelo" value={vehicle.model || "-"} />
             <DetailRow icon={<Calendar className="w-4 h-4" />} label="Ano" value={String(vehicle.year || "-")} />
+            <DetailRow icon={<Tag className="w-4 h-4" />} label="Placa" value={vehicle.plate || "-"} />
+            <DetailRow icon={<FileText className="w-4 h-4" />} label="Renavam" value={vehicle.renavam || "-"} />
+            <DetailRow icon={<Settings2 className="w-4 h-4" />} label="Chassi" value={vehicle.chassis || "-"} />
+            <DetailRow icon={<Tag className="w-4 h-4" />} label="Status" value={statusBadge(vehicle.status)} />
             <DetailRow icon={<Palette className="w-4 h-4" />} label="Cor" value={vehicle.color || "-"} />
             <DetailRow icon={<Palette className="w-4 h-4" />} label="Cor Interna" value={vehicle.interior_color || "-"} />
             <DetailRow icon={<FileText className="w-4 h-4" />} label="Tipo" value={vehicle.vehicle_type || "-"} />
@@ -246,7 +318,39 @@ export default function VehicleDetailsPage() {
           </h3>
           <div className="flex flex-col gap-3">
             <DetailRow icon={<DollarSign className="w-4 h-4" />} label="Venda" value={formatPrice(vehicle.price)} />
-            <DetailRow icon={<DollarSign className="w-4 h-4" />} label="Compra" value={formatPrice(vehicle.purchase_price)} />
+            <DetailRow icon={<DollarSign className="w-4 h-4" />} label="Compra" value={formatPrice(vehicle.purchase_price ?? undefined)} />
+            <DetailRow icon={<Tag className="w-4 h-4" />} label="Código FIPE" value={vehicle.fipe_code || "-"} />
+            <DetailRow
+              icon={<DollarSign className="w-4 h-4" />}
+              label="FIPE Atual"
+              value={fipeCurrent?.Valor || formatPrice(vehicle.current_fipe_value ?? undefined)}
+            />
+            <DetailRow
+              icon={<Calendar className="w-4 h-4" />}
+              label="Ref. Atual FIPE"
+              value={fipeCurrent?.MesReferencia || "-"}
+            />
+          </div>
+        </div>
+
+        {/* Histórico FIPE */}
+        <div className="card">
+          <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <Clock className="w-4 h-4" style={{ color: "var(--accent-purple)" }} />
+            Histórico FIPE (mais recente primeiro)
+          </h3>
+          <div className="flex flex-col gap-3">
+            {orderedHistory.length === 0 && (
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Sem histórico de consulta FIPE.</p>
+            )}
+            {orderedHistory.map((item) => (
+              <DetailRow
+                key={item.id}
+                icon={<DollarSign className="w-4 h-4" />}
+                label={`${item.mes_referencia || "Referência"} • ${item.modelo || vehicle.model}`}
+                value={`${formatPrice(item.valor ?? 0)} • ${formatDate(item.data_consulta)}`}
+              />
+            ))}
           </div>
         </div>
 
@@ -371,7 +475,7 @@ export default function VehicleDetailsPage() {
   )
 }
 
-function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
   return (
     <div
       className="flex items-center justify-between"

@@ -66,6 +66,9 @@ CREATE TABLE vehicles (
     brand VARCHAR(100) NOT NULL,
     model VARCHAR(100) NOT NULL,
     year INTEGER NOT NULL,
+    plate VARCHAR(10) NOT NULL,
+    renavam VARCHAR(20),
+    chassis VARCHAR(30),
     color VARCHAR(50),
     fuel_type VARCHAR(50) CHECK (fuel_type IN ('gasoline', 'diesel', 'ethanol', 'hybrid', 'electric')),
     transmission VARCHAR(50) CHECK (transmission IN ('manual', 'automatic')),
@@ -77,7 +80,8 @@ CREATE TABLE vehicles (
     vehicle_type VARCHAR(50) CHECK (vehicle_type IN ('car', 'truck', 'motorcycle', 'van', 'suv')),
     status VARCHAR(20) DEFAULT 'available' CHECK (status IN ('available', 'sold', 'reserved', 'maintenance')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (tenant_id, plate)
 );
 
 -- Create vehicle images table
@@ -100,7 +104,7 @@ CREATE TABLE announcements (
     description TEXT,
     portal_id UUID,
     portal_listing_id VARCHAR(255),
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'archived')),
+    status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('draft', 'active', 'inactive', 'archived', 'sold', 'preparing')),
     published_at TIMESTAMP,
     expires_at TIMESTAMP,
     featured BOOLEAN DEFAULT FALSE,

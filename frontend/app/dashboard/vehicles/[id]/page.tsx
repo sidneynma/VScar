@@ -9,6 +9,12 @@ const colors = ['Branco', 'Preto', 'Prata', 'Vermelho', 'Azul', 'Cinza', 'Verde'
 const fuelTypes = ['Gasolina', 'Diesel', 'Álcool', 'Híbrido', 'Elétrico', 'Gasolina/GNV']
 const transmissions = ['Manual', 'Automática', 'CVT']
 const doors = ['2', '3', '4', '5']
+const vehicleStatusOptions = [
+  { id: 'available', label: 'Disponível' },
+  { id: 'reserved', label: 'Reservado' },
+  { id: 'sold', label: 'Vendido' },
+  { id: 'maintenance', label: 'Em manutenção' }
+]
 
 const financialStateOptions = [
   { id: 'paid', label: 'Veículo quitado' },
@@ -186,6 +192,18 @@ export default function EditVehiclePage() {
               <input type="number" name="year" value={vehicle.year} onChange={handleChange} className="form-input" required />
             </div>
             <div>
+              <label className="form-label">Placa</label>
+              <input type="text" name="plate" value={vehicle.plate || ''} onChange={handleChange} className="form-input" required />
+            </div>
+            <div>
+              <label className="form-label">Renavam</label>
+              <input type="text" name="renavam" value={vehicle.renavam || ''} onChange={handleChange} className="form-input" />
+            </div>
+            <div>
+              <label className="form-label">Número do Chassi</label>
+              <input type="text" name="chassis" value={vehicle.chassis || ''} onChange={handleChange} className="form-input" />
+            </div>
+            <div>
               <label className="form-label">Quilometragem</label>
               <input type="number" name="mileage" value={vehicle.mileage} onChange={handleChange} className="form-input" required />
             </div>
@@ -233,6 +251,19 @@ export default function EditVehiclePage() {
               <label className="form-label">Valor de Compra (R$)</label>
               <input type="number" name="purchase_price" value={vehicle.purchase_price || 0} onChange={handleChange} step="0.01" className="form-input" />
             </div>
+          </div>
+        </div>
+
+        {/* Status do Veículo */}
+        <div className="card mb-6">
+          <h2 className="text-lg font-semibold mb-4">Status do Veículo</h2>
+          <div>
+            <label className="form-label">Status</label>
+            <select name="status" value={vehicle.status || 'available'} onChange={handleChange} className="form-input">
+              {vehicleStatusOptions.map(option => (
+                <option key={option.id} value={option.id}>{option.label}</option>
+              ))}
+            </select>
           </div>
         </div>
 
