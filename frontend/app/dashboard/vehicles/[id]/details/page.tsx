@@ -61,7 +61,7 @@ interface FipeCurrentResult {
 
 interface FipeHistoryItem {
   id: number
-  valor: number
+  valor?: number
   codigo_fipe: string
   marca: string
   modelo: string
@@ -69,6 +69,8 @@ interface FipeHistoryItem {
   combustivel: string
   data_consulta: string
   mes_referencia: string
+  codigo_tabela?: number
+  created_at?: string
 }
 
 export default function VehicleDetailsPage() {
@@ -148,7 +150,7 @@ export default function VehicleDetailsPage() {
     }
   }
 
-  const formatPrice = (price: number) => {
+  const formatPrice = (price?: number) => {
     if (!price) return "Sob consulta"
     return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(price))
   }
@@ -186,8 +188,15 @@ export default function VehicleDetailsPage() {
   }
 
   const orderedHistory = [...fipeHistory].sort((a, b) => {
-    const dateA = new Date(a.data_consulta || 0).getTime()
-    const dateB = new Date(b.data_consulta || 0).getTime()
+    const tableA = Number(a.codigo_tabela || 0)
+    const tableB = Number(b.codigo_tabela || 0)
+
+    if (tableA !== tableB) {
+      return tableB - tableA
+    }
+
+    const dateA = new Date(a.data_consulta || a.created_at || 0).getTime()
+    const dateB = new Date(b.data_consulta || b.created_at || 0).getTime()
     return dateB - dateA
   })
 
@@ -309,12 +318,12 @@ export default function VehicleDetailsPage() {
           </h3>
           <div className="flex flex-col gap-3">
             <DetailRow icon={<DollarSign className="w-4 h-4" />} label="Venda" value={formatPrice(vehicle.price)} />
-            <DetailRow icon={<DollarSign className="w-4 h-4" />} label="Compra" value={formatPrice(vehicle.purchase_price)} />
+            <DetailRow icon={<DollarSign className="w-4 h-4" />} label="Compra" value={formatPrice(vehicle.purchase_price ?? undefined)} />
             <DetailRow icon={<Tag className="w-4 h-4" />} label="Código FIPE" value={vehicle.fipe_code || "-"} />
             <DetailRow
               icon={<DollarSign className="w-4 h-4" />}
               label="FIPE Atual"
-              value={fipeCurrent?.Valor || formatPrice(vehicle.current_fipe_value)}
+              value={fipeCurrent?.Valor || formatPrice(vehicle.current_fipe_value ?? undefined)}
             />
             <DetailRow
               icon={<Calendar className="w-4 h-4" />}
@@ -339,7 +348,7 @@ export default function VehicleDetailsPage() {
                 key={item.id}
                 icon={<DollarSign className="w-4 h-4" />}
                 label={`${item.mes_referencia || "Referência"} • ${item.modelo || vehicle.model}`}
-                value={`${formatPrice(Number(item.valor || 0))} • ${formatDate(item.data_consulta)}`}
+                value={`${formatPrice(item.valor ?? 0)} • ${formatDate(item.data_consulta)}`}
               />
             ))}
           </div>

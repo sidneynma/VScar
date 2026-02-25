@@ -345,11 +345,11 @@ router.get("/:id/fipe-history", authMiddleware, async (req: AuthRequest, res: Re
     }
 
     const historyResult = await pool.query(
-      `SELECT h.id, h.valor, h.codigo_fipe, h.marca, h.modelo, h.ano_modelo, h.combustivel, h.data_consulta, r.mes_referencia
+      `SELECT h.id, h.valor, h.codigo_fipe, h.marca, h.modelo, h.ano_modelo, h.combustivel, h.data_consulta, r.mes_referencia, r.codigo_tabela, h.created_at
        FROM fipe_consult_history h
        LEFT JOIN fipe_reference r ON r.id = h.fipe_reference_id
        WHERE h.vehicle_id = $1
-       ORDER BY COALESCE(h.data_consulta, h.created_at) DESC, h.created_at DESC`,
+       ORDER BY r.codigo_tabela DESC NULLS LAST, COALESCE(h.data_consulta, h.created_at) DESC, h.created_at DESC`,
       [req.params.id],
     );
 
