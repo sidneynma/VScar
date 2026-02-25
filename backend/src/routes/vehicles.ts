@@ -9,6 +9,20 @@ const router = express.Router()
 const fipeService = new FipeService();
 const status = VEHICLE_STATUS.AVAILABLE;
 
+const normalizeText = (value: string) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+
+const mapVehicleTypeToFipe = (vehicleType?: string) => {
+  const normalized = normalizeText(vehicleType || "carro");
+  if (normalized.includes("moto")) return 2;
+  if (normalized.includes("caminhao") || normalized.includes("caminhão")) return 3;
+  return 1;
+};
+
 const getVehiclePersistenceError = (err: any) => {
   if (err?.code === "23505") {
     if (err?.constraint === "idx_vehicles_tenant_plate_unique") {
@@ -335,7 +349,7 @@ router.get("/:id/fipe-history", authMiddleware, async (req: AuthRequest, res: Re
        FROM fipe_consult_history h
        LEFT JOIN fipe_reference r ON r.id = h.fipe_reference_id
        WHERE h.vehicle_id = $1
-       ORDER BY h.data_consulta DESC NULLS LAST, h.created_at DESC`,
+       ORDER BY COALESCE(h.data_consulta, h.created_at) DESC, h.created_at DESC`,
       [req.params.id],
     );
 
@@ -343,6 +357,87 @@ router.get("/:id/fipe-history", authMiddleware, async (req: AuthRequest, res: Re
   } catch (err) {
     console.error("Error:", err);
     res.status(500).json({ message: "Error fetching FIPE history" });
+  }
+});
+
+// Current FIPE value using official FIPE endpoint
+router.get("/:id/fipe-current", authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const vehicleResult = await pool.query(
+      "SELECT * FROM vehicles WHERE id = $1 AND tenant_id = $2",
+      [req.params.id, req.user?.tenant_id],
+    );
+
+    if (vehicleResult.rows.length === 0) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+
+    const vehicle = vehicleResult.rows[0];
+
+    if (!vehicle.fipe_code) {
+      return res.status(400).json({ message: "Vehicle has no FIPE code" });
+    }
+
+    const referenciaResult = await pool.query(
+      "SELECT codigo_tabela FROM fipe_reference ORDER BY codigo_tabela DESC LIMIT 1",
+    );
+    const codigoTabelaReferencia = referenciaResult.rows[0]?.codigo_tabela || 330;
+
+    const tipoVeiculo = mapVehicleTypeToFipe(vehicle.vehicle_type);
+    const marcas = await fipeService.getMarcas(tipoVeiculo, codigoTabelaReferencia);
+
+    const marcaSelecionada = marcas.find((m: any) => normalizeText(m.Nome) === normalizeText(vehicle.brand))
+      || marcas.find((m: any) => normalizeText(m.Nome).includes(normalizeText(vehicle.brand)));
+
+    if (!marcaSelecionada) {
+      return res.status(404).json({ message: "Marca FIPE não encontrada para o veículo" });
+    }
+
+    const modelos = await fipeService.getModelos(
+      tipoVeiculo,
+      String(marcaSelecionada.Codigo),
+      codigoTabelaReferencia,
+    );
+
+    const modeloSelecionado = modelos.find((m: any) => normalizeText(m.Nome) === normalizeText(vehicle.model))
+      || modelos.find((m: any) => normalizeText(vehicle.model).includes(normalizeText(m.Nome)))
+      || modelos.find((m: any) => normalizeText(m.Nome).includes(normalizeText(vehicle.model)));
+
+    if (!modeloSelecionado) {
+      return res.status(404).json({ message: "Modelo FIPE não encontrado para o veículo" });
+    }
+
+    const anos = await fipeService.getAnos(
+      tipoVeiculo,
+      String(marcaSelecionada.Codigo),
+      String(modeloSelecionado.Codigo),
+      codigoTabelaReferencia,
+    );
+
+    const anoSelecionado = anos.find((a: any) => String(a.Nome || "").startsWith(String(vehicle.year)));
+
+    if (!anoSelecionado) {
+      return res.status(404).json({ message: "Ano FIPE não encontrado para o veículo" });
+    }
+
+    const valorAtual = await fipeService.getValorComReferencia(
+      codigoTabelaReferencia,
+      tipoVeiculo,
+      String(marcaSelecionada.Codigo),
+      String(modeloSelecionado.Codigo),
+      String(anoSelecionado.Codigo),
+    );
+
+    res.json({
+      ...valorAtual,
+      marcaCodigo: marcaSelecionada.Codigo,
+      modeloCodigo: modeloSelecionado.Codigo,
+      anoCodigo: anoSelecionado.Codigo,
+      modeloCadastrado: vehicle.model,
+    });
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Error fetching current FIPE value" });
   }
 });
 

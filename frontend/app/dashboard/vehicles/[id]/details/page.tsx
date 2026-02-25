@@ -50,12 +50,13 @@ interface Vehicle {
 }
 
 interface FipeCurrentResult {
-  valor: string
-  marca: string
-  modelo: string
-  codigoFipe: string
-  mesReferencia: string
-  dataConsulta: string
+  Valor: string
+  Marca: string
+  Modelo: string
+  CodigoFipe: string
+  MesReferencia: string
+  DataConsulta: string
+  modeloCadastrado?: string
 }
 
 interface FipeHistoryItem {
@@ -109,13 +110,15 @@ export default function VehicleDetailsPage() {
 
         if (vehicleData?.fipe_code) {
           const currentRes = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/fipe/codigo/${vehicleData.fipe_code}?modelo=${encodeURIComponent(vehicleData.model || "")}`,
+            `${process.env.NEXT_PUBLIC_API_URL}/api/vehicles/${params.id}/fipe-current`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            },
           )
 
           if (currentRes.ok) {
             const currentData = await currentRes.json()
-            const selected = Array.isArray(currentData) && currentData.length > 0 ? currentData[0] : null
-            setFipeCurrent(selected)
+            setFipeCurrent(currentData)
           }
         }
       } else {
@@ -181,6 +184,12 @@ export default function VehicleDetailsPage() {
     }
     return map[t] || t || "-"
   }
+
+  const orderedHistory = [...fipeHistory].sort((a, b) => {
+    const dateA = new Date(a.data_consulta || 0).getTime()
+    const dateB = new Date(b.data_consulta || 0).getTime()
+    return dateB - dateA
+  })
 
   if (loading) {
     return (
@@ -305,12 +314,12 @@ export default function VehicleDetailsPage() {
             <DetailRow
               icon={<DollarSign className="w-4 h-4" />}
               label="FIPE Atual"
-              value={fipeCurrent?.valor || formatPrice(vehicle.current_fipe_value)}
+              value={fipeCurrent?.Valor || formatPrice(vehicle.current_fipe_value)}
             />
             <DetailRow
               icon={<Calendar className="w-4 h-4" />}
               label="Ref. Atual FIPE"
-              value={fipeCurrent?.mesReferencia || "-"}
+              value={fipeCurrent?.MesReferencia || "-"}
             />
           </div>
         </div>
@@ -322,10 +331,10 @@ export default function VehicleDetailsPage() {
             Histórico FIPE (mais recente primeiro)
           </h3>
           <div className="flex flex-col gap-3">
-            {fipeHistory.length === 0 && (
+            {orderedHistory.length === 0 && (
               <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Sem histórico de consulta FIPE.</p>
             )}
-            {fipeHistory.map((item) => (
+            {orderedHistory.map((item) => (
               <DetailRow
                 key={item.id}
                 icon={<DollarSign className="w-4 h-4" />}
