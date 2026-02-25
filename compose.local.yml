@@ -17,6 +17,13 @@ services:
       JWT_SECRET: dev_jwt_secret_key_change_in_production
       JWT_EXPIRES_IN: 7d
       FIPE_BASE_URL: https://veiculos.fipe.org.br/api/veiculos
+      ACTIVE_STORAGE_SERVICE: s3_compatible
+      STORAGE_BUCKET_NAME: vscar
+      STORAGE_ACCESS_KEY_ID: yEYUFG9iHO5mwXuutRnB
+      STORAGE_SECRET_ACCESS_KEY: XhZriIFehJU6rhUZBYkyN2m4rwAfyiGtMCIrBPeD
+      STORAGE_REGION: auto
+      STORAGE_ENDPOINT: https://apiminio1.chatolhe.com.br
+      STORAGE_FORCE_PATH_STYLE: "true"
     ports:
       - "3001:3001"
     networks:
