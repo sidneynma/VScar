@@ -1,0 +1,57 @@
+# ==========================================
+# Docker Compose LOCAL - VSCar
+# PostgreSQL rodando no Windows via host.docker.internal
+# ==========================================
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vscar-backend-local
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:teste010203!@host.docker.internal:5432/vscar_db
+      API_PORT: 3001
+      JWT_SECRET: dev_jwt_secret_key_change_in_production
+      JWT_EXPIRES_IN: 7d
+      FIPE_BASE_URL: https://veiculos.fipe.org.br/api/veiculos
+      ACTIVE_STORAGE_SERVICE: s3_compatible
+      STORAGE_BUCKET_NAME: vscar
+      STORAGE_ACCESS_KEY_ID: yEYUFG9iHO5mwXuutRnB
+      STORAGE_SECRET_ACCESS_KEY: KEY=XhZriIFehJU6rhUZBYkyN2m4rwAfyiGtMCIrBPeD
+      STORAGE_REGION: auto
+      STORAGE_ENDPOINT: https://apiminio1.chatolhe.com.br
+      STORAGE_FORCE_PATH_STYLE: "true"
+    ports:
+      - "3001:3001"
+    networks:
+      - vscar_network_local
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: npm run dev
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: vscar-frontend-local
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001      
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - vscar_network_local
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev
+
+networks:
+  vscar_network_local:
+    driver: bridge
