@@ -18,6 +18,7 @@ import portalsRoutes from "./routes/portals"
 import portalSyncRoutes from "./routes/portal-sync"
 import vehicleImagesRoutes from "./routes/vehicle-images"
 import fipeRoutes from "./routes/fipe";
+import vehiclePartiesRoutes from "./routes/vehicle-parties"
 const app = express()
 const PORT = process.env.API_PORT || 3001
 
@@ -59,6 +60,7 @@ app.use("/api/portals", portalsRoutes)
 app.use("/api/portals", portalSyncRoutes)
 app.use("/api/vehicles", vehicleImagesRoutes)
 app.use("/api/fipe", fipeRoutes);
+app.use("/api/vehicle-parties", vehiclePartiesRoutes)
 
 // Debug endpoints
 app.get("/debug/tables", async (req, res) => {

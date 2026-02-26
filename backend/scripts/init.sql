@@ -94,6 +94,43 @@ CREATE TABLE vehicle_images (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+
+-- Create vehicle parties table
+CREATE TABLE vehicle_parties (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
+    phone VARCHAR(20),
+    document VARCHAR(30),
+    profile_type VARCHAR(20) NOT NULL DEFAULT 'both' CHECK (profile_type IN ('owner', 'buyer', 'both')),
+    person_type VARCHAR(20) NOT NULL DEFAULT 'individual' CHECK (person_type IN ('individual', 'company')),
+    postal_code VARCHAR(10),
+    street VARCHAR(255),
+    number VARCHAR(20),
+    complement VARCHAR(120),
+    neighborhood VARCHAR(120),
+    city VARCHAR(100),
+    state VARCHAR(2),
+    status VARCHAR(20) NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create vehicle party history table
+CREATE TABLE vehicle_party_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    vehicle_id UUID NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+    party_id UUID NOT NULL REFERENCES vehicle_parties(id) ON DELETE CASCADE,
+    relation_type VARCHAR(20) NOT NULL CHECK (relation_type IN ('owner', 'buyer')),
+    event_date DATE DEFAULT CURRENT_DATE,
+    sale_price DECIMAL(12,2),
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create announcements table
 CREATE TABLE announcements (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -177,6 +214,10 @@ CREATE INDEX idx_revendas_tenant_id ON revendas(tenant_id);
 CREATE INDEX idx_vehicles_tenant_id ON vehicles(tenant_id);
 CREATE INDEX idx_vehicles_revenda_id ON vehicles(revenda_id);
 CREATE INDEX idx_vehicles_status ON vehicles(status);
+CREATE INDEX idx_vehicle_parties_tenant_id ON vehicle_parties(tenant_id);
+CREATE INDEX idx_vehicle_party_history_tenant_id ON vehicle_party_history(tenant_id);
+CREATE INDEX idx_vehicle_party_history_party_id ON vehicle_party_history(party_id);
+CREATE INDEX idx_vehicle_party_history_vehicle_id ON vehicle_party_history(vehicle_id);
 CREATE INDEX idx_announcements_tenant_id ON announcements(tenant_id);
 CREATE INDEX idx_announcements_vehicle_id ON announcements(vehicle_id);
 CREATE INDEX idx_announcements_status ON announcements(status);

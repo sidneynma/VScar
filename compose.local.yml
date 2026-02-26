@@ -19,8 +19,8 @@ services:
       FIPE_BASE_URL: https://veiculos.fipe.org.br/api/veiculos
       ACTIVE_STORAGE_SERVICE: s3_compatible
       STORAGE_BUCKET_NAME: vscar
-      STORAGE_ACCESS_KEY_ID: ${STORAGE_ACCESS_KEY_ID}
-      STORAGE_SECRET_ACCESS_KEY: ${STORAGE_SECRET_ACCESS_KEY}
+      STORAGE_ACCESS_KEY_ID: yEYUFG9iHO5mwXuutRnB
+      STORAGE_SECRET_ACCESS_KEY: KEY=XhZriIFehJU6rhUZBYkyN2m4rwAfyiGtMCIrBPeD
       STORAGE_REGION: auto
       STORAGE_ENDPOINT: https://apiminio1.chatolhe.com.br
       STORAGE_FORCE_PATH_STYLE: "true"
