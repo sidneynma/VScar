@@ -1,0 +1,9 @@
+ALTER TABLE vehicle_parties
+    ADD COLUMN IF NOT EXISTS person_type VARCHAR(20) NOT NULL DEFAULT 'individual' CHECK (person_type IN ('individual', 'company')),
+    ADD COLUMN IF NOT EXISTS postal_code VARCHAR(10),
+    ADD COLUMN IF NOT EXISTS street VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS number VARCHAR(20),
+    ADD COLUMN IF NOT EXISTS complement VARCHAR(120),
+    ADD COLUMN IF NOT EXISTS neighborhood VARCHAR(120),
+    ADD COLUMN IF NOT EXISTS city VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS state VARCHAR(2);

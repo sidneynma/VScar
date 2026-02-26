@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
 import axios from "axios"
 import Link from "next/link"
@@ -19,8 +19,10 @@ export default function VehicleImagesPage() {
   const router = useRouter()
   const params = useParams()
   const [images, setImages] = useState<VehicleImage[]>([])
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [error, setError] = useState("")
 
   useEffect(() => {
@@ -42,23 +44,65 @@ export default function VehicleImagesPage() {
     }
   }
 
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  const fileToBase64 = (file: File) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = typeof reader.result === "string" ? reader.result : ""
+        resolve(result.split(",")[1] || "")
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+
+  const handleFileSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (!files) return
+    if (!files || files.length === 0) {
+      setSelectedFiles([])
+      return
+    }
+
+    setError("")
+    setSelectedFiles(Array.from(files))
+  }
+
+  const handleCancelSelection = () => {
+    setSelectedFiles([])
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""
+    }
+  }
+
+  const handleUpload = async () => {
+    if (selectedFiles.length === 0) return
 
     setUploading(true)
     try {
       const token = localStorage.getItem("token")
-      for (const file of Array.from(files)) {
-        const formData = new FormData()
-        formData.append("image", file)
+      const preparedImages = await Promise.all(
+        selectedFiles.map(async (file, index) => ({
+          filename: file.name,
+          mime_type: file.type,
+          data: await fileToBase64(file),
+          is_primary: images.length === 0 && index === 0,
+        })),
+      )
 
-        await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/vehicles/${params.id}/images`, formData, {
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/vehicles/${params.id}/images`,
+        { images: preparedImages },
+        {
           headers: {
             Authorization: `Bearer ${token}`,
-            "Content-Type": "multipart/form-data",
+            "Content-Type": "application/json",
           },
-        })
+        },
+      )
+
+      setSelectedFiles([])
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""
       }
       fetchImages()
     } catch (err) {
@@ -99,7 +143,43 @@ export default function VehicleImagesPage() {
 
       <div className="card mb-6">
         <label className="block mb-2 font-semibold">Adicionar Fotos</label>
-        <input type="file" multiple accept="image/*" onChange={handleUpload} disabled={uploading} className="w-full" />
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={handleFileSelection}
+          disabled={uploading}
+          className="w-full"
+        />
+        {selectedFiles.length > 0 && (
+          <>
+            <p className="text-sm text-gray-400 mt-2">{selectedFiles.length} foto(s) selecionada(s)</p>
+            <ul className="text-xs text-gray-500 mt-1 space-y-1">
+              {selectedFiles.map((file) => (
+                <li key={`${file.name}-${file.lastModified}`}>• {file.name}</li>
+              ))}
+            </ul>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={handleUpload}
+                disabled={uploading}
+                className="btn-primary"
+                type="button"
+              >
+                Enviar fotos
+              </button>
+              <button
+                onClick={handleCancelSelection}
+                disabled={uploading}
+                className="btn-secondary"
+                type="button"
+              >
+                Cancelar
+              </button>
+            </div>
+          </>
+        )}
         {uploading && <p className="text-sm text-gray-500 mt-2">Enviando...</p>}
       </div>
 

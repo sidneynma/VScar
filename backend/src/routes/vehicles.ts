@@ -9,19 +9,52 @@ const router = express.Router()
 const fipeService = new FipeService();
 const status = VEHICLE_STATUS.AVAILABLE;
 
+
+const normalizeText = (value: string) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+
+const mapVehicleTypeToFipe = (vehicleType?: string) => {
+  const normalized = normalizeText(vehicleType || "carro");
+  if (normalized.includes("moto")) return 2;
+  if (normalized.includes("caminhao") || normalized.includes("caminhão")) return 3;
+  return 1;
+};
+
+const getVehiclePersistenceError = (err: any) => {
+  if (err?.code === "23505") {
+    if (err?.constraint === "idx_vehicles_tenant_plate_unique") {
+      return {
+        status: 409,
+        message: "Placa já cadastrada para esta revenda.",
+      };
+    }
+
+    return {
+      status: 409,
+      message: "Já existe um registro com os dados informados.",
+    };
+  }
+
+  return null;
+};
+
 // List vehicles
 router.get("/", authMiddleware, async (req: AuthRequest, res: Response) => {
   try {
     const status = req.query.status
-    let query = "SELECT * FROM vehicles WHERE tenant_id = $1"
+    let query = "SELECT v.*, vt.name AS vehicle_tag_name, vt.color AS vehicle_tag_color FROM vehicles v LEFT JOIN vehicle_tags vt ON vt.id = v.vehicle_tag_id WHERE v.tenant_id = $1"
     const params: any[] = [req.user?.tenant_id]
 
     if (status) {
-      query += " AND status = $2"
+      query += " AND v.status = $2"
       params.push(status)
     }
 
-    query += " ORDER BY created_at DESC"
+    query += " ORDER BY v.created_at DESC"
 
     const result = await pool.query(query, params)
     res.json(result.rows)
@@ -48,6 +81,9 @@ router.post(
         brand,
         model,
         year,
+        plate,
+        renavam,
+        chassis,
         color,
         fuel_type,
         transmission,
@@ -63,6 +99,7 @@ router.post(
         conservation,
         features,
         revenda_id,
+        vehicle_tag_id,
 
         // FIPE códigos enviados do frontend
         marca_codigo,
@@ -71,7 +108,17 @@ router.post(
         tipoVeiculo,
       } = req.body;
 
-      if (!title || !brand || !model || !year || !price) {
+      const hasMissingRequiredFields =
+        !title ||
+        !brand ||
+        !model ||
+        year === undefined ||
+        year === null ||
+        price === undefined ||
+        price === null ||
+        !plate;
+
+      if (hasMissingRequiredFields) {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
@@ -89,8 +136,9 @@ router.post(
       // 1️⃣ Criar veículo
       const result = await client.query(
         `INSERT INTO vehicles (
-          id, tenant_id, revenda_id,
+          id, tenant_id, revenda_id, vehicle_tag_id,
           title, brand, model, year,
+          plate, renavam, chassis,
           color, fuel_type, transmission,
           mileage, price, purchase_price,
           description, interior_color,
@@ -101,17 +149,21 @@ router.post(
         VALUES (
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
           $11,$12,$13,$14,$15,$16,$17,$18,
-          $19,$20,$21
+          $19,$20,$21,$22,$23,$24,$25
         )
         RETURNING *`,
         [
           uuidv4(),
           req.user?.tenant_id,
           revenda_id || null,
+          vehicle_tag_id || null,
           title,
           brand,
           model,
           year,
+          plate,
+          renavam || null,
+          chassis || null,
           color,
           fuel_type,
           transmission,
@@ -126,7 +178,7 @@ router.post(
           JSON.stringify(documentation || []),
           JSON.stringify(conservation || []),
           JSON.stringify(features || []),
-        ]
+          ]
       );
 
       const vehicle = result.rows[0];
@@ -241,6 +293,14 @@ router.post(
     } catch (err) {
       await client.query("ROLLBACK");
       console.error(err);
+
+      const persistenceError = getVehiclePersistenceError(err);
+      if (persistenceError) {
+        return res
+          .status(persistenceError.status)
+          .json({ message: persistenceError.message });
+      }
+
       res.status(500).json({ message: "Error creating vehicle" });
     } finally {
       client.release();
@@ -275,6 +335,115 @@ router.get("/:id", authMiddleware, async (req: AuthRequest, res: Response) => {
   }
 })
 
+// FIPE history (most recent first)
+router.get("/:id/fipe-history", authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const vehicleResult = await pool.query(
+      "SELECT id FROM vehicles WHERE id = $1 AND tenant_id = $2",
+      [req.params.id, req.user?.tenant_id],
+    );
+
+    if (vehicleResult.rows.length === 0) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+
+    const historyResult = await pool.query(
+      `SELECT h.id, h.valor, h.codigo_fipe, h.marca, h.modelo, h.ano_modelo, h.combustivel, h.data_consulta, r.mes_referencia, r.codigo_tabela, h.created_at
+       FROM fipe_consult_history h
+       LEFT JOIN fipe_reference r ON r.id = h.fipe_reference_id
+       WHERE h.vehicle_id = $1
+       ORDER BY r.codigo_tabela DESC NULLS LAST, COALESCE(h.data_consulta, h.created_at) DESC, h.created_at DESC`,
+      [req.params.id],
+    );
+
+    res.json(historyResult.rows);
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Error fetching FIPE history" });
+  }
+});
+
+// Current FIPE value using official FIPE endpoint
+router.get("/:id/fipe-current", authMiddleware, async (req: AuthRequest, res: Response) => {
+  try {
+    const vehicleResult = await pool.query(
+      "SELECT * FROM vehicles WHERE id = $1 AND tenant_id = $2",
+      [req.params.id, req.user?.tenant_id],
+    );
+
+    if (vehicleResult.rows.length === 0) {
+      return res.status(404).json({ message: "Vehicle not found" });
+    }
+
+    const vehicle = vehicleResult.rows[0];
+
+    if (!vehicle.fipe_code) {
+      return res.status(400).json({ message: "Vehicle has no FIPE code" });
+    }
+
+    const referenciaResult = await pool.query(
+      "SELECT codigo_tabela FROM fipe_reference ORDER BY codigo_tabela DESC LIMIT 1",
+    );
+    const codigoTabelaReferencia = referenciaResult.rows[0]?.codigo_tabela || 330;
+
+    const tipoVeiculo = mapVehicleTypeToFipe(vehicle.vehicle_type);
+    const marcas = await fipeService.getMarcas(tipoVeiculo, codigoTabelaReferencia);
+
+    const marcaSelecionada = marcas.find((m: any) => normalizeText(m.Nome) === normalizeText(vehicle.brand))
+      || marcas.find((m: any) => normalizeText(m.Nome).includes(normalizeText(vehicle.brand)));
+
+    if (!marcaSelecionada) {
+      return res.status(404).json({ message: "Marca FIPE não encontrada para o veículo" });
+    }
+
+    const modelos = await fipeService.getModelos(
+      tipoVeiculo,
+      String(marcaSelecionada.Codigo),
+      codigoTabelaReferencia,
+    );
+
+    const modeloSelecionado = modelos.find((m: any) => normalizeText(m.Nome) === normalizeText(vehicle.model))
+      || modelos.find((m: any) => normalizeText(vehicle.model).includes(normalizeText(m.Nome)))
+      || modelos.find((m: any) => normalizeText(m.Nome).includes(normalizeText(vehicle.model)));
+
+    if (!modeloSelecionado) {
+      return res.status(404).json({ message: "Modelo FIPE não encontrado para o veículo" });
+    }
+
+    const anos = await fipeService.getAnos(
+      tipoVeiculo,
+      String(marcaSelecionada.Codigo),
+      String(modeloSelecionado.Codigo),
+      codigoTabelaReferencia,
+    );
+
+    const anoSelecionado = anos.find((a: any) => String(a.Nome || "").startsWith(String(vehicle.year)));
+
+    if (!anoSelecionado) {
+      return res.status(404).json({ message: "Ano FIPE não encontrado para o veículo" });
+    }
+
+    const valorAtual = await fipeService.getValorComReferencia(
+      codigoTabelaReferencia,
+      tipoVeiculo,
+      String(marcaSelecionada.Codigo),
+      String(modeloSelecionado.Codigo),
+      String(anoSelecionado.Codigo),
+    );
+
+    res.json({
+      ...valorAtual,
+      marcaCodigo: marcaSelecionada.Codigo,
+      modeloCodigo: modeloSelecionado.Codigo,
+      anoCodigo: anoSelecionado.Codigo,
+      modeloCadastrado: vehicle.model,
+    });
+  } catch (err) {
+    console.error("Error:", err);
+    res.status(500).json({ message: "Error fetching current FIPE value" });
+  }
+});
+
 // Update vehicle
 router.put(
   "/:id",
@@ -287,6 +456,9 @@ router.put(
         brand,
         model,
         year,
+        plate,
+        renavam,
+        chassis,
         color,
         fuel_type,
         transmission,
@@ -302,6 +474,7 @@ router.put(
         documentation,
         conservation,
         features,
+        vehicle_tag_id,
       } = req.body
       const vehicleTypeMap: Record<string, string> = {
         Carro: VEHICLE_TYPES.CAR,
@@ -315,13 +488,16 @@ router.put(
         vehicleTypeMap[vehicle_type] || vehicle_type;
 
       const result = await pool.query(
-        `UPDATE vehicles SET title = $1, brand = $2, model = $3, year = $4, color = $5, fuel_type = $6, transmission = $7, mileage = $8, price = $9, purchase_price = $10, description = $11, status = $12, interior_color = $13, doors = $14, vehicle_type = $15, financial_state = $16, documentation = $17, conservation = $18, features = $19, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $20 AND tenant_id = $21 RETURNING *`,
+        `UPDATE vehicles SET title = $1, brand = $2, model = $3, year = $4, plate = $5, renavam = $6, chassis = $7, color = $8, fuel_type = $9, transmission = $10, mileage = $11, price = $12, purchase_price = $13, description = $14, status = $15, interior_color = $16, doors = $17, vehicle_type = $18, financial_state = $19, documentation = $20, conservation = $21, features = $22, vehicle_tag_id = $23, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $24 AND tenant_id = $25 RETURNING *`,
         [
           title,
           brand,
           model,
           year,
+          plate,
+          renavam || null,
+          chassis || null,
           color,
           fuel_type,
           transmission,
@@ -337,6 +513,7 @@ router.put(
           JSON.stringify(documentation || []),
           JSON.stringify(conservation || []),
           JSON.stringify(features || []),
+          vehicle_tag_id || null,
           req.params.id,
           req.user?.tenant_id,
         ]
@@ -349,6 +526,14 @@ router.put(
       res.json(result.rows[0])
     } catch (err) {
       console.error("Error:", err)
+
+      const persistenceError = getVehiclePersistenceError(err);
+      if (persistenceError) {
+        return res
+          .status(persistenceError.status)
+          .json({ message: persistenceError.message });
+      }
+
       res.status(500).json({ message: "Error updating vehicle" })
     }
   },

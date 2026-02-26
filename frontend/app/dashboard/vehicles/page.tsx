@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { Car, Plus, Search, Pencil, Archive, CheckCircle, XCircle, Eye } from "lucide-react"
+import { Car, Plus, Search, Pencil, CheckCircle, Wrench, DollarSign, Eye } from "lucide-react"
 
 interface Vehicle {
   id: string
@@ -85,11 +85,6 @@ export default function VehiclesPage() {
     }
   }
 
-  const archiveVehicle = async (id: string) => {
-    if (!confirm("Tem certeza que deseja arquivar este veiculo?")) return
-    await updateStatus(id, "archived")
-  }
-
   const filteredVehicles = vehicles.filter((v) => {
     const matchesSearch =
       v.title?.toLowerCase().includes(search.toLowerCase()) ||
@@ -103,17 +98,15 @@ export default function VehiclesPage() {
   const statusBadge = (status: string) => {
     switch (status) {
       case "available":
-        return <span className="badge badge-green">Disponivel</span>
-      case "inactive":
-        return <span className="badge badge-gray">Inativo</span>
+        return <span className="badge badge-green">Disponível</span>
       case "reserved":
         return <span className="badge badge-blue">Reservado</span>
       case "sold":
-        return <span className="badge badge-blue">Vendido</span>
-      case "archived":
-        return <span className="badge badge-red">Arquivado</span>
+        return <span className="badge badge-red">Vendido</span>
+      case "maintenance":
+        return <span className="badge badge-yellow">Em manutenção</span>
       default:
-        return <span className="badge badge-gray">{status}</span>
+        return <span className="badge badge-gray">Não informado</span>
     }
   }
 
@@ -165,9 +158,10 @@ export default function VehiclesPage() {
         <div className="flex gap-2">
           {[
             { value: "all", label: "Todos" },
-            { value: "available", label: "Ativos" },
-            { value: "inactive", label: "Inativos" },
-            { value: "archived", label: "Arquivados" },
+            { value: "available", label: "Disponíveis" },
+            { value: "reserved", label: "Reservados" },
+            { value: "maintenance", label: "Em manutenção" },
+            { value: "sold", label: "Vendidos" },
           ].map((f) => (
             <button
               key={f.value}
@@ -286,33 +280,11 @@ export default function VehiclesPage() {
                         <Pencil className="w-4 h-4" />
                       </button>
 
-                      {/* Ativar / Inativar */}
-                      {vehicle.status === "available" ? (
-                        <button
-                          onClick={() => updateStatus(vehicle.id, "inactive")}
-                          title="Inativar"
-                          style={{
-                            padding: "0.375rem",
-                            borderRadius: "0.375rem",
-                            color: "var(--text-secondary)",
-                            transition: "all 0.2s",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.color = "var(--accent-yellow)"
-                            e.currentTarget.style.backgroundColor = "rgba(210, 153, 34, 0.1)"
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.color = "var(--text-secondary)"
-                            e.currentTarget.style.backgroundColor = "transparent"
-                          }}
-                          disabled={actionLoading === vehicle.id}
-                        >
-                          <XCircle className="w-4 h-4" />
-                        </button>
-                      ) : vehicle.status !== "archived" ? (
+                      {/* Alternar disponível/manutenção */}
+                      {vehicle.status === "maintenance" ? (
                         <button
                           onClick={() => updateStatus(vehicle.id, "available")}
-                          title="Ativar"
+                          title="Marcar como disponível"
                           style={{
                             padding: "0.375rem",
                             borderRadius: "0.375rem",
@@ -331,13 +303,35 @@ export default function VehiclesPage() {
                         >
                           <CheckCircle className="w-4 h-4" />
                         </button>
+                      ) : vehicle.status !== "sold" ? (
+                        <button
+                          onClick={() => updateStatus(vehicle.id, "maintenance")}
+                          title="Marcar como manutenção"
+                          style={{
+                            padding: "0.375rem",
+                            borderRadius: "0.375rem",
+                            color: "var(--text-secondary)",
+                            transition: "all 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = "var(--accent-yellow)"
+                            e.currentTarget.style.backgroundColor = "rgba(210, 153, 34, 0.1)"
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = "var(--text-secondary)"
+                            e.currentTarget.style.backgroundColor = "transparent"
+                          }}
+                          disabled={actionLoading === vehicle.id}
+                        >
+                          <Wrench className="w-4 h-4" />
+                        </button>
                       ) : null}
 
-                      {/* Arquivar */}
-                      {vehicle.status !== "archived" && (
+                      {/* Marcar como vendido */}
+                      {vehicle.status !== "sold" && (
                         <button
-                          onClick={() => archiveVehicle(vehicle.id)}
-                          title="Arquivar"
+                          onClick={() => updateStatus(vehicle.id, "sold")}
+                          title="Marcar como vendido"
                           style={{
                             padding: "0.375rem",
                             borderRadius: "0.375rem",
@@ -354,7 +348,7 @@ export default function VehiclesPage() {
                           }}
                           disabled={actionLoading === vehicle.id}
                         >
-                          <Archive className="w-4 h-4" />
+                          <DollarSign className="w-4 h-4" />
                         </button>
                       )}
                     </div>
